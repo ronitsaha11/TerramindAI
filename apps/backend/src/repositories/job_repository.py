@@ -1,9 +1,12 @@
-from typing import Sequence
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.repositories.base import BaseRepository
-from src.db.models.job import Job
+
 from src.db.models.enums import JobStatus
+from src.db.models.job import Job
+from src.repositories.base import BaseRepository
+
 
 class JobRepository(BaseRepository[Job]):
     def __init__(self, session: AsyncSession):

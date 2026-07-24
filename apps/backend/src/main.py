@@ -1,26 +1,28 @@
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from src.api.v1.router import api_router
 from src.core.config import settings
-from src.core.logging import setup_logging
-from src.core.redis import redis_client
-from src.db.session import engine
 from src.core.exceptions import (
     AppException,
     app_exception_handler,
     http_exception_handler,
-    validation_exception_handler,
     unhandled_exception_handler,
+    validation_exception_handler,
 )
+from src.core.logging import setup_logging
+from src.core.redis import redis_client
+from src.db.session import engine
 from src.middleware.logging import RequestLoggingMiddleware
 from src.middleware.security import SecurityHeadersMiddleware
-from src.api.v1.router import api_router
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,7 +32,7 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging(log_level=settings.LOG_LEVEL)
     logger.info(f"Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode.")
-    
+
     # Verify configurations and initialize connections
     try:
         await redis_client.connect()
@@ -55,6 +57,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error during Database dispose: {e}")
 
+
 def create_app() -> FastAPI:
     """
     Application factory for the FastAPI application.
@@ -70,9 +73,9 @@ def create_app() -> FastAPI:
     )
 
     # Register Exception Handlers
-    app.add_exception_handler(AppException, app_exception_handler) # type: ignore
-    app.add_exception_handler(StarletteHTTPException, http_exception_handler) # type: ignore
-    app.add_exception_handler(RequestValidationError, validation_exception_handler) # type: ignore
+    app.add_exception_handler(AppException, app_exception_handler)  # type: ignore
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
     # Register Middlewares (Order matters: outermost first)
@@ -90,5 +93,6 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api/v1")
 
     return app
+
 
 app = create_app()

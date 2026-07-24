@@ -1,0 +1,57 @@
+import uuid
+from unittest.mock import AsyncMock
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from src.api.dependencies import get_region_service
+from src.main import app
+from src.schemas.region import RegionRead
+
+
+@pytest.fixture
+def mock_region_service():
+    return AsyncMock()
+
+
+@pytest.fixture
+async def async_client(mock_region_service):
+    app.dependency_overrides[get_region_service] = lambda: mock_region_service
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_create_region(async_client, mock_region_service):
+    project_id = uuid.uuid4()
+    mock_region = RegionRead(
+        id=uuid.uuid4(),
+        project_id=project_id,
+        name="Test Region",
+        area_sq_km=100.5,
+        created_at="2023-01-01T00:00:00Z",
+        updated_at="2023-01-01T00:00:00Z",
+        geometry={
+            "type": "Polygon",
+            "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+        },
+    )
+    mock_region_service.create_region.return_value = mock_region
+
+    payload = {
+        "name": "Test Region",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+        },
+    }
+
+    response = await async_client.post(
+        f"/api/v1/projects/{project_id}/regions", json=payload
+    )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["name"] == "Test Region"

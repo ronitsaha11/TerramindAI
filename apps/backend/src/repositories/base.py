@@ -1,16 +1,21 @@
 import uuid
-from typing import Generic, TypeVar, Sequence
-from sqlalchemy import select, func
+from collections.abc import Sequence
+from typing import Generic, TypeVar
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.db.models.base import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
+
 
 class BaseRepository(Generic[ModelType]):
     """
     Generic Base Repository handling persistence operations.
     Never calls session.commit(). Leaves transaction boundaries to the UnitOfWork.
     """
+
     def __init__(self, session: AsyncSession, model_cls: type[ModelType]):
         self.session = session
         self.model_cls = model_cls
@@ -32,7 +37,9 @@ class BaseRepository(Generic[ModelType]):
         return obj is not None
 
     async def count(self) -> int:
-        result = await self.session.execute(select(func.count()).select_from(self.model_cls))
+        result = await self.session.execute(
+            select(func.count()).select_from(self.model_cls)
+        )
         return result.scalar_one()
 
     async def update(self, obj: ModelType) -> ModelType:
@@ -45,5 +52,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.flush()
 
     async def paginate(self, skip: int = 0, limit: int = 100) -> Sequence[ModelType]:
-        result = await self.session.execute(select(self.model_cls).offset(skip).limit(limit))
+        result = await self.session.execute(
+            select(self.model_cls).offset(skip).limit(limit)
+        )
         return result.scalars().all()

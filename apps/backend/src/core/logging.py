@@ -1,15 +1,17 @@
-import logging
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+import logging
+from datetime import UTC, datetime
+from typing import Any
+
 
 class JSONFormatter(logging.Formatter):
     """
     Formatter that outputs JSON strings after parsing the LogRecord.
     """
+
     def format(self, record: logging.LogRecord) -> str:
-        log_record: Dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+        log_record: dict[str, Any] = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "message": record.getMessage(),
             "logger": record.name,
@@ -25,17 +27,18 @@ class JSONFormatter(logging.Formatter):
 
         return json.dumps(log_record)
 
+
 def setup_logging(log_level: str = "INFO") -> None:
     """
     Configure the root logger with the JSONFormatter.
     """
     logger = logging.getLogger()
     logger.setLevel(log_level.upper())
-    
+
     # Remove existing handlers to avoid duplicates
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
-        
+
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(JSONFormatter())
     logger.addHandler(console_handler)

@@ -1,12 +1,15 @@
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
+
 
 class ErrorDetail(BaseModel):
     code: str
     message: str
     trace_id: str
+
 
 class ErrorResponse(BaseModel):
     success: bool = False
@@ -19,11 +22,12 @@ class ErrorResponse(BaseModel):
                 "error": {
                     "code": "INTERNAL_SERVER_ERROR",
                     "message": "An unexpected error occurred.",
-                    "trace_id": "req-12345"
-                }
+                    "trace_id": "req-12345",
+                },
             }
         }
     )
+
 
 class SuccessResponse(BaseModel, Generic[T]):
     success: bool = True
