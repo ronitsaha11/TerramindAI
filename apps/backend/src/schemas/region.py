@@ -10,7 +10,7 @@ from src.utils.geometry import wkb_to_geojson
 
 class RegionCreate(BaseModel):
     name: str = Field(..., max_length=255)
-    geometry: dict = Field(..., description="GeoJSON polygon or multipolygon")
+    geometry: dict[str, Any] = Field(..., description="GeoJSON polygon or multipolygon")
 
 
 class RegionUpdate(BaseModel):
@@ -25,11 +25,11 @@ class RegionRead(BaseSchema):
     created_at: datetime
     updated_at: datetime
 
-    geometry: dict
+    geometry: dict[str, Any]
 
     @field_validator("geometry", mode="before")
     @classmethod
-    def convert_geometry(cls, v: Any) -> dict:
+    def convert_geometry(cls, v: Any) -> dict[str, Any]:
         if isinstance(v, dict):
             return v
         # Assuming v is the WKBElement string from GeoAlchemy2

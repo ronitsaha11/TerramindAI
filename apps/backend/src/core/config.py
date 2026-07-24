@@ -8,13 +8,13 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str
+    DATABASE_URL: str = ""
 
     # Redis
-    REDIS_URL: str
+    REDIS_URL: str = ""
 
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = ""
 
     # Logging
     LOG_LEVEL: str = "INFO"
