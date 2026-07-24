@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 class AppException(Exception):
     """Base application exception."""
 
-    def __init__(self, code: str, message: str, status_code: int = 400):
-        self.code = code
-        self.message = message
+    def __init__(self, status_code: int = 400, detail: str = "An error occurred"):
         self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
 
 
 def _get_trace_id(request: Request) -> str:
@@ -25,8 +25,9 @@ def _get_trace_id(request: Request) -> str:
 
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     trace_id = _get_trace_id(request)
+    code = f"APP_{exc.status_code}"
     logger.warning(
-        f"AppException: {exc.code} - {exc.message}",
+        f"AppException: {code} - {exc.detail}",
         extra={
             "request_id": trace_id,
             "path": request.url.path,
@@ -37,7 +38,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
-            error=ErrorDetail(code=exc.code, message=exc.message, trace_id=trace_id)
+            error=ErrorDetail(code=code, message=exc.detail, trace_id=trace_id)
         ).model_dump(),
     )
 
