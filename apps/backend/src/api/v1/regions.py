@@ -30,4 +30,4 @@ async def list_regions(
     service: Annotated[RegionService, Depends(get_region_service)],
 ) -> SuccessResponse[list[RegionRead]]:
     regions = await service.list_regions(project_id)
-    return SuccessResponse(data=regions)
+    return SuccessResponse(data=list(regions))

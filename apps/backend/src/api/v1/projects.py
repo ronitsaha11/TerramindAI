@@ -27,7 +27,7 @@ async def list_projects(
     service: Annotated[ProjectService, Depends(get_project_service)],
 ) -> SuccessResponse[list[ProjectRead]]:
     projects = await service.list_projects()
-    return SuccessResponse(data=projects)
+    return SuccessResponse(data=list(projects))
 
 
 @router.get("/{project_id}", response_model=SuccessResponse[ProjectRead])
