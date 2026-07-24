@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-terramind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-terramind_local}
+      POSTGRES_DB: ${POSTGRES_DB:-terramind_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Placeholder for Backend service
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.backend
+  #   ...
+
+  # Placeholder for Frontend service
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.frontend
+  #   ...
+
+volumes:
+  postgres_data:
+  redis_data:
