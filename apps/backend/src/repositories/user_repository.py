@@ -1,0 +1,12 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.repositories.base import BaseRepository
+from src.db.models.user import User
+
+class UserRepository(BaseRepository[User]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, User)
+
+    async def find_by_email(self, email: str) -> User | None:
+        result = await self.session.execute(select(User).where(User.email == email))
+        return result.scalars().first()
