@@ -2,21 +2,42 @@ from typing import Any
 
 import shapely.wkb
 from geoalchemy2.elements import WKBElement
-from shapely.geometry import mapping, shape
+from shapely.geometry import MultiPolygon, mapping, shape
+from shapely.geometry.base import BaseGeometry
 from shapely.wkt import dumps
 
 from src.core.exceptions import AppException
 
 
+def parse_polygonal_geojson(geojson: dict[str, Any]) -> BaseGeometry:
+    """Parse and validate a non-empty, valid GeoJSON Polygon or MultiPolygon."""
+    try:
+        geom = shape(geojson)
+    except Exception as exc:
+        raise ValueError("geometry must be a valid GeoJSON geometry") from exc
+
+    if geom.geom_type not in {"Polygon", "MultiPolygon"}:
+        raise ValueError("geometry must be a GeoJSON Polygon or MultiPolygon")
+    if geom.is_empty:
+        raise ValueError("geometry must not be empty")
+    if not geom.is_valid:
+        raise ValueError("geometry must be valid and must not self-intersect")
+
+    return geom
+
+
 def geojson_to_wkt(geojson: dict[str, Any]) -> str:
     """Converts a GeoJSON geometry dictionary to a WKT string for PostGIS."""
     try:
-        geom = shape(geojson)
+        geom = parse_polygonal_geojson(geojson)
+        # The database column is MULTIPOLYGON, so normalize accepted Polygons.
+        if geom.geom_type == "Polygon":
+            geom = MultiPolygon([geom])
         return dumps(geom)
-    except Exception as e:
+    except ValueError as exc:
         raise AppException(
-            status_code=400, detail=f"Invalid GeoJSON geometry: {str(e)}"
-        ) from e
+            status_code=400, detail=f"Invalid GeoJSON geometry: {exc}"
+        ) from exc
 
 
 def wkb_to_geojson(wkb_element: WKBElement | str) -> dict[str, Any]:

@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api.dependencies import get_region_service
+from src.core.exceptions import AppException
 from src.main import app
 from src.schemas.region import RegionRead
 
@@ -55,3 +56,44 @@ async def test_create_region(async_client, mock_region_service):
 
     assert response.status_code == 201
     assert response.json()["data"]["name"] == "Test Region"
+
+
+@pytest.mark.asyncio
+async def test_create_region_rejects_non_polygon_geometry(
+    async_client, mock_region_service
+):
+    response = await async_client.post(
+        f"/api/v1/projects/{uuid.uuid4()}/regions",
+        json={
+            "name": "Point Region",
+            "geometry": {"type": "Point", "coordinates": [0, 0]},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["success"] is False
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    mock_region_service.create_region.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_region_returns_conflict_for_duplicate_name(
+    async_client, mock_region_service
+):
+    mock_region_service.create_region.side_effect = AppException(
+        status_code=409, detail="Region name already exists in this project."
+    )
+
+    response = await async_client.post(
+        f"/api/v1/projects/{uuid.uuid4()}/regions",
+        json={
+            "name": "Duplicate",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+            },
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "APP_409"

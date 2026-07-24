@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api.dependencies import get_project_service
+from src.core.exceptions import AppException
 from src.db.models.enums import ProjectStatus
 from src.main import app
 from src.schemas.project import ProjectRead
@@ -45,3 +46,18 @@ async def test_create_project(async_client, mock_project_service):
     assert response.status_code == 201
     assert response.json()["data"]["name"] == "Test Project"
     assert response.json()["data"]["id"] == str(mock_project.id)
+
+
+@pytest.mark.asyncio
+async def test_create_project_returns_conflict_for_duplicate_name(
+    async_client, mock_project_service
+):
+    mock_project_service.create_project.side_effect = AppException(
+        status_code=409, detail="Project name already exists for this owner."
+    )
+
+    response = await async_client.post("/api/v1/projects", json={"name": "Duplicate"})
+
+    assert response.status_code == 409
+    assert response.json()["success"] is False
+    assert response.json()["error"]["code"] == "APP_409"

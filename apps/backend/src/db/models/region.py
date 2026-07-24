@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from src.db.models.project import Project
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy import Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,10 @@ class Region(BaseEntity, Base):
     )
 
     area_sq_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_region_project_name"),
+    )
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="regions")
