@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from src.core.config import settings
-from src.db.base import Base
+from src.db.models import Base
 # Import all your SQLAlchemy models here so Alembic can see them
 # e.g. from src.models.user import User
 
