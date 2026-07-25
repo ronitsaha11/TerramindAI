@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.analytics.enums import AnalysisType, ProcessingStatus
+from src.analytics.statistics.schemas import StatisticsSummary
 from src.analytics.types import (
     BandIdentifier,
     BoundingBox,
@@ -70,7 +71,7 @@ class AnalysisResult(BaseModel):
     created_at: datetime
     completed_at: datetime | None = None
     raster_metadata: RasterMetadata | None = None
-    statistics: dict[str, float] | None = None
+    statistics: StatisticsSummary | None = None
     output_uri: str | None = None
     thumbnail_uri: str | None = None
     error_message: str | None = None
