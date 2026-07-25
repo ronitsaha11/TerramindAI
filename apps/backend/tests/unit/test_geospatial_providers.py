@@ -199,7 +199,7 @@ async def test_lifespan_manages_shared_provider_clients(monkeypatch):
     app = FastAPI()
     monkeypatch.setattr("src.main.redis_client.connect", AsyncMock())
     monkeypatch.setattr("src.main.redis_client.disconnect", AsyncMock())
-    monkeypatch.setattr("src.main.engine.dispose", AsyncMock())
+    monkeypatch.setattr("sqlalchemy.ext.asyncio.AsyncEngine.dispose", AsyncMock())
 
     async with lifespan(app):
         request = SimpleNamespace(app=app)
@@ -243,27 +243,21 @@ async def test_earth_search_get_scene_translates_4xx_and_5xx(
     )
     async with mock_client(transport) as client:
         with pytest.raises(AppException) as exc_info:
-            await EarthSearchProvider(client).get_scene(
-                "sentinel-2-l2a", "scene-1"
-            )
+            await EarthSearchProvider(client).get_scene("sentinel-2-l2a", "scene-1")
 
     assert exc_info.value.status_code == expected_status
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("status_code, expected_status", [(400, 400), (500, 503)])
-async def test_titiler_translates_4xx_and_5xx_responses(
-    status_code, expected_status
-):
+async def test_titiler_translates_4xx_and_5xx_responses(status_code, expected_status):
     """TiTiler adapter must map upstream 4xx->400 and 5xx->503."""
     transport = httpx.MockTransport(
         lambda request: httpx.Response(status_code, request=request)
     )
     async with mock_client(transport) as client:
         with pytest.raises(AppException) as exc_info:
-            await TiTilerProvider(client).get_template(
-                "https://example.test/scene.tif"
-            )
+            await TiTilerProvider(client).get_template("https://example.test/scene.tif")
 
     assert exc_info.value.status_code == expected_status
 
@@ -271,25 +265,27 @@ async def test_titiler_translates_4xx_and_5xx_responses(
 @pytest.mark.asyncio
 async def test_titiler_timeout_becomes_domain_exception():
     """TiTiler timeout must surface as 504, not leak a transport exception."""
+
     def timeout(_: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("timed out")
 
     async with mock_client(httpx.MockTransport(timeout)) as client:
         with pytest.raises(AppException) as exc_info:
-            await TiTilerProvider(client).get_template(
-                "https://example.test/scene.tif"
-            )
+            await TiTilerProvider(client).get_template("https://example.test/scene.tif")
 
     assert exc_info.value.status_code == 504
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("bad_uri", [
-    "file:///tmp/scene.tif",
-    "/absolute/path/scene.tif",
-    "relative/path.tif",
-    "ftp://server/scene.tif",
-])
+@pytest.mark.parametrize(
+    "bad_uri",
+    [
+        "file:///tmp/scene.tif",
+        "/absolute/path/scene.tif",
+        "relative/path.tif",
+        "ftp://server/scene.tif",
+    ],
+)
 async def test_tile_service_rejects_non_routable_uri(bad_uri):
     """TileService must reject URI schemes that are not routable by tile providers."""
     provider = AsyncMock()

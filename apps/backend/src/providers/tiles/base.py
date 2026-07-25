@@ -13,4 +13,3 @@ class TileProvider(ABC):
     @abstractmethod
     async def get_template(self, cog_href: str) -> TileTemplateResponse:
         """Return an XYZ tile template for a COG."""
-

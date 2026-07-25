@@ -26,4 +26,3 @@ class TileService:
                 detail="A valid HTTP(S) or S3 COG URI is required.",
             )
         return cog_href
-
