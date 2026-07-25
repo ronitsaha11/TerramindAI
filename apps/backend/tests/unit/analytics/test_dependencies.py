@@ -10,5 +10,7 @@ def test_get_raster_provider() -> None:
 
 
 def test_get_analytics_engine() -> None:
-    with pytest.raises(NotImplementedError, match="AnalyticsEngine not yet implemented"):
+    with pytest.raises(
+        NotImplementedError, match="AnalyticsEngine not yet implemented"
+    ):
         get_analytics_engine()
