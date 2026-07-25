@@ -1,0 +1,1 @@
+"""External geospatial provider adapters."""

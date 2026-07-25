@@ -115,7 +115,7 @@ def upgrade() -> None:
         sa.Column("cloud_cover", sa.Float(), nullable=True),
         sa.Column("bbox", sa.JSON(), nullable=True),
         sa.Column("stac_url", sa.String(length=1024), nullable=True),
-        sa.Column("cog_url", sa.String(length=1024), nullable=True),
+        sa.Column("cog_href", sa.String(length=1024), nullable=True),
         sa.Column("resolution", sa.Float(), nullable=True),
         sa.Column("bands", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column(

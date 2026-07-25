@@ -2,6 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,29 +35,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(log_level=settings.LOG_LEVEL)
     logger.info(f"Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode.")
 
-    # Verify configurations and initialize connections
+    app.state.earth_search_client = httpx.AsyncClient(
+        base_url=settings.EARTH_SEARCH_URL,
+        timeout=settings.PROVIDER_TIMEOUT_SECONDS,
+    )
+    app.state.titiler_client = httpx.AsyncClient(
+        base_url=settings.TITILER_URL,
+        timeout=settings.PROVIDER_TIMEOUT_SECONDS,
+    )
+
     try:
+        # Verify configurations and initialize connections
         await redis_client.connect()
         logger.info("Redis client connected.")
+        yield
     except Exception as e:
-        logger.error(f"Failed to connect to Redis: {e}")
+        logger.error(f"Application lifecycle error: {e}")
         raise
+    finally:
+        # Shutdown
+        logger.info("Shutting down application...")
+        await app.state.earth_search_client.aclose()
+        await app.state.titiler_client.aclose()
 
-    yield
+        try:
+            await redis_client.disconnect()
+            logger.info("Redis client disconnected.")
+        except Exception as e:
+            logger.error(f"Error during Redis disconnect: {e}")
 
-    # Shutdown
-    logger.info("Shutting down application...")
-    try:
-        await redis_client.disconnect()
-        logger.info("Redis client disconnected.")
-    except Exception as e:
-        logger.error(f"Error during Redis disconnect: {e}")
-
-    try:
-        await engine.dispose()
-        logger.info("Database engine disposed.")
-    except Exception as e:
-        logger.error(f"Error during Database dispose: {e}")
+        try:
+            await engine.dispose()
+            logger.info("Database engine disposed.")
+        except Exception as e:
+            logger.error(f"Error during Database dispose: {e}")
 
 
 def create_app() -> FastAPI:

@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = ""
 
+    # Geospatial providers
+    EARTH_SEARCH_URL: str = "https://earth-search.aws.element84.com/v1"
+    TITILER_URL: str = "https://titiler.xyz"
+    PROVIDER_TIMEOUT_SECONDS: float = 15.0
+
     # Redis
     REDIS_URL: str = ""
 

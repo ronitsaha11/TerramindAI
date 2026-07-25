@@ -26,7 +26,7 @@ class SatelliteScene(BaseEntity, Base):
     bbox: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     stac_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    cog_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    cog_href: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     resolution: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # List of bands available (e.g., ["B02", "B03", "B04", "B08"])
