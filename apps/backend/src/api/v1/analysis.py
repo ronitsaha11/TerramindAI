@@ -28,11 +28,17 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
     ),
     responses={
         400: {
-            "description": "Bad Request (e.g., missing required bands, invalid band indices)"
+            "description": (
+                "Bad Request (e.g., missing required bands, "
+                "invalid band indices)"
+            )
         },
         404: {"description": "Raster or scene not found"},
         422: {
-            "description": "Unprocessable Entity (e.g., invalid analysis type, validation error)"
+            "description": (
+                "Unprocessable Entity (e.g., invalid analysis type, "
+                "validation error)"
+            )
         },
         500: {"description": "Internal Server Error"},
         502: {"description": "External Provider Error"},
@@ -50,7 +56,8 @@ async def analyze_scene(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except AnalysisValidationError as e:
         # Distinguish between 400 (bad parameters) and 422 (unsupported types)
-        # Using 400 as a generic catch-all for validation here, although 422 is also fine.
+        # Using 400 as a generic catch-all for validation here,
+        # although 422 is also fine.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e

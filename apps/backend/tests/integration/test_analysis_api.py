@@ -66,7 +66,8 @@ async def test_analyze_success(client, mock_analysis_service):
     # For FastAPI dependency on Pydantic BaseModel attributes if it checks them directly
     mock_analysis_service.analyze.return_value = mock_result
 
-    # Actually we should return a real AnalysisResult so FastAPI doesn't fail on response validation
+    # Actually we should return a real AnalysisResult so FastAPI doesn't
+    # fail on response validation
     from datetime import UTC, datetime
 
     from src.analytics.enums import ProcessingStatus

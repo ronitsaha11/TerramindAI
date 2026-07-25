@@ -1,9 +1,9 @@
 import uuid
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from datetime import datetime
 
 from src.api.dependencies import get_region_service
 from src.core.exceptions import AppException
