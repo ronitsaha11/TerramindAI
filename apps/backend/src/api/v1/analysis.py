@@ -29,15 +29,13 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
     responses={
         400: {
             "description": (
-                "Bad Request (e.g., missing required bands, "
-                "invalid band indices)"
+                "Bad Request (e.g., missing required bands, invalid band indices)"
             )
         },
         404: {"description": "Raster or scene not found"},
         422: {
             "description": (
-                "Unprocessable Entity (e.g., invalid analysis type, "
-                "validation error)"
+                "Unprocessable Entity (e.g., invalid analysis type, validation error)"
             )
         },
         500: {"description": "Internal Server Error"},
