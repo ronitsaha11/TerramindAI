@@ -277,7 +277,7 @@ def upgrade() -> None:
         sa.text(
             """
             INSERT INTO users (id, email, name, role)
-            VALUES (:id, :email, 'Development Owner', 'developer')
+            VALUES (CAST(:id AS UUID), :email, 'Development Owner', 'developer')
             ON CONFLICT (id) DO NOTHING
             """
         ).bindparams(id=DEVELOPMENT_OWNER_ID, email=DEVELOPMENT_OWNER_EMAIL)

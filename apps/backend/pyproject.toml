@@ -6,13 +6,13 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 ignore_missing_imports = true
 warn_unused_configs = true
 warn_unused_ignores = true
 no_implicit_optional = true
 check_untyped_defs = true
-# strict = true  # TODO: enable incrementally as the codebase matures
+exclude = ["alembic"]
 
 [tool.ruff]
 line-length = 88

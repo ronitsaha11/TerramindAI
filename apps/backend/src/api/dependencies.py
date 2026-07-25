@@ -3,6 +3,8 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from src.analytics.engine import AnalyticsEngine
+from src.analytics.providers.base import RasterProvider
 from src.db.session import AsyncSessionLocal
 from src.providers.catalog.base import CatalogProvider
 from src.providers.catalog.earth_search import EarthSearchProvider
@@ -48,3 +50,15 @@ def get_tile_service(
     provider: Annotated[TileProvider, Depends(get_tile_provider)],
 ) -> TileService:
     return TileService(provider)
+
+
+def get_raster_provider() -> RasterProvider:
+    """Dependency provider for RasterProvider (stub)."""
+    # TODO: Return a concrete RasterProvider instance in future milestones
+    raise NotImplementedError("RasterProvider not yet implemented")
+
+
+def get_analytics_engine() -> AnalyticsEngine:
+    """Dependency provider for AnalyticsEngine (stub)."""
+    # TODO: Return a concrete AnalyticsEngine instance in future milestones
+    raise NotImplementedError("AnalyticsEngine not yet implemented")
