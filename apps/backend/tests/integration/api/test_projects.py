@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from datetime import datetime
 
 from src.api.dependencies import get_project_service
 from src.core.exceptions import AppException
@@ -34,8 +35,8 @@ async def test_create_project(async_client, mock_project_service):
         name="Test Project",
         description="A test",
         status=ProjectStatus.ACTIVE,
-        created_at="2023-01-01T00:00:00Z",
-        updated_at="2023-01-01T00:00:00Z",
+        created_at=datetime.fromisoformat("2023-01-01T00:00:00"),
+        updated_at=datetime.fromisoformat("2023-01-01T00:00:00"),
     )
     mock_project_service.create_project.return_value = mock_project
 

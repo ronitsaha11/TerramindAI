@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from datetime import datetime
 
 from src.api.dependencies import get_region_service
 from src.core.exceptions import AppException
@@ -33,8 +34,8 @@ async def test_create_region(async_client, mock_region_service):
         project_id=project_id,
         name="Test Region",
         area_sq_km=100.5,
-        created_at="2023-01-01T00:00:00Z",
-        updated_at="2023-01-01T00:00:00Z",
+        created_at=datetime.fromisoformat("2023-01-01T00:00:00Z"),
+        updated_at=datetime.fromisoformat("2023-01-01T00:00:00Z"),
         geometry={
             "type": "Polygon",
             "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
