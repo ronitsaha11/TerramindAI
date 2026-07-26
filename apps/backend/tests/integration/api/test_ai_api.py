@@ -34,7 +34,8 @@ def mock_ai_service():
 @pytest.fixture
 async def async_client(mock_ai_service) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_ai_inference_service] = lambda: mock_ai_service
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
     app.dependency_overrides.clear()
 
