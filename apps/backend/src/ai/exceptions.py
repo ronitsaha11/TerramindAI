@@ -28,3 +28,7 @@ class ModelNotFoundError(AIException):
 
 class InferenceValidationError(AIException):
     """Raised when an inference request fails validation (e.g., incompatible inputs)."""
+
+
+class DuplicateModelRegistrationError(AIException):
+    """Raised when attempting to register a model that is already registered."""
