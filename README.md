@@ -15,7 +15,7 @@ Earth Intelligence Platform.
 - Node.js (v18+)
 - Python (3.11+)
 - Docker & Docker Compose
-
+Added new features
 ### Getting Started
 1. Clone the repository
 2. Copy `.env.example` to `.env`
