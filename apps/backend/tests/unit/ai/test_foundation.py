@@ -66,11 +66,10 @@ def test_model_metadata_validation():
     # Missing required field
     with pytest.raises(ValidationError):
         ModelMetadata(
-            model_id="test-model",
             name="Test Model",
             version="1.0.0",
             supported_bands=["RED"],
-            # missing required field
+            # missing required field (model_id)
         )
 
 

@@ -18,8 +18,7 @@ class ModelMetadata(BaseModel):
     supported_bands: list[str] = Field(
         ...,
         description=(
-            "List of band names this model expects "
-            "(e.g., ['RED', 'GREEN', 'BLUE'])"
+            "List of band names this model expects (e.g., ['RED', 'GREEN', 'BLUE'])"
         ),
     )
     hyperparameters: dict[str, Any] = Field(
@@ -32,9 +31,7 @@ class InferenceRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    project_id: UUID = Field(
-        ..., description="Project ID associated with this request"
-    )
+    project_id: UUID = Field(..., description="Project ID associated with this request")
     scene_id: str = Field(
         ..., description="URI or identifier of the source raster scene"
     )
