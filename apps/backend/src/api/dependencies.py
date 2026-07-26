@@ -1,8 +1,17 @@
 from collections.abc import AsyncGenerator
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, Request
 
+from src.ai.loader import AIModelLoader
+from src.ai.manager import ModelManager
+from src.ai.models import ModelMetadata
+from src.ai.processing.postprocessor import SegmentationPostprocessor
+from src.ai.processing.preprocessor import RasterPreprocessor
+from src.ai.providers.segformer import SegFormerModel
+from src.ai.registry import ModelRegistry
+from src.ai.service import AIInferenceService
 from src.analytics.engine import AnalyticsEngine
 from src.analytics.indices import default_registry as default_index_registry
 from src.analytics.providers.base import RasterProvider
@@ -74,4 +83,47 @@ def get_analysis_service(
         raster_provider=provider,
         index_registry=default_index_registry,
         statistics_engine=default_statistics_engine,
+    )
+
+
+@lru_cache
+def get_model_manager() -> ModelManager:
+    """Dependency provider for ModelManager (Singleton)."""
+    registry = ModelRegistry()
+
+    segformer_meta = ModelMetadata(
+        model_id="segformer-b0",
+        name="SegFormer B0",
+        version="v1",
+        description="Semantic segmentation model",
+        supported_bands=["RED", "GREEN", "BLUE"],
+    )
+    registry.register(segformer_meta, SegFormerModel)
+
+    loader = AIModelLoader()
+    return ModelManager(registry, loader)
+
+
+def get_raster_preprocessor() -> RasterPreprocessor:
+    """Dependency provider for RasterPreprocessor."""
+    return RasterPreprocessor()
+
+
+def get_segmentation_postprocessor() -> SegmentationPostprocessor:
+    """Dependency provider for SegmentationPostprocessor."""
+    return SegmentationPostprocessor()
+
+
+def get_ai_inference_service(
+    model_manager: Annotated[ModelManager, Depends(get_model_manager)],
+    preprocessor: Annotated[RasterPreprocessor, Depends(get_raster_preprocessor)],
+    postprocessor: Annotated[
+        SegmentationPostprocessor, Depends(get_segmentation_postprocessor)
+    ],
+) -> AIInferenceService:
+    """Dependency provider for AIInferenceService."""
+    return AIInferenceService(
+        model_manager=model_manager,
+        preprocessor=preprocessor,
+        postprocessor=postprocessor,
     )
