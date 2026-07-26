@@ -54,10 +54,12 @@ def test_deterministic_predictions(dummy_metadata):
 
 def test_model_load_error_wrapping(dummy_metadata):
     import sys
+
     # Patch sys.modules to mock transformers completely since importing it fails on CI
     # due to Windows blocking regex DLLs
     mock_transformers = MagicMock()
-    mock_transformers.SegformerForSemanticSegmentation.from_pretrained.side_effect = Exception("Failed download")
+    mock_segformer = mock_transformers.SegformerForSemanticSegmentation
+    mock_segformer.from_pretrained.side_effect = Exception("Failed download")
     with patch.dict(sys.modules, {"transformers": mock_transformers}):
         # In non-mock mode, SegFormerModel attempts to import torch.
         provider = SegFormerModel(dummy_metadata, mock_mode=False)
@@ -98,7 +100,7 @@ def test_torch_no_grad_behavior(dummy_metadata):
 def test_registration_through_registry(dummy_metadata):
     registry = ModelRegistry()
     registry.register(dummy_metadata, SegFormerModel)
-    
+
     metadata, model_class = registry.lookup("test-segformer")
     assert model_class is SegFormerModel
     assert metadata.model_id == "test-segformer"
@@ -107,13 +109,13 @@ def test_registration_through_registry(dummy_metadata):
 def test_loading_through_loader(dummy_metadata):
     registry = ModelRegistry()
     registry.register(dummy_metadata, SegFormerModel)
-    
+
     loader = AIModelLoader()
     _, provider_class = registry.lookup("test-segformer")
-    
+
     with patch.object(SegFormerModel, "load"):
         model_instance = loader.initialize_provider(provider_class)
-    
+
     assert isinstance(model_instance, SegFormerModel)
     # The default instance created by initialize_provider has default metadata,
     # but let's check it doesn't crash.
@@ -127,13 +129,13 @@ def test_cache_reuse_through_manager(dummy_metadata):
     registry.register(dummy_metadata, SegFormerModel)
     loader = AIModelLoader()
     manager = ModelManager(registry, loader)
-    
+
     with patch.object(SegFormerModel, "load"):
         # Load first time
         model1 = manager.get_model("test-segformer")
-        
+
         # Load second time
         model2 = manager.get_model("test-segformer")
-    
+
     # Ensure they are the exact same instance
     assert model1 is model2
