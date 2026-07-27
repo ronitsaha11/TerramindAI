@@ -73,3 +73,10 @@ class GeoJSONValidationError(GeoJSONExportError):
 
     def __init__(self, detail: str = "GeoJSON validation failed") -> None:
         super().__init__(detail=detail)
+
+
+class GeospatialExecutionError(GeospatialProcessingError):
+    """Raised when the geospatial service orchestration fails."""
+
+    def __init__(self, detail: str = "Geospatial execution failed") -> None:
+        super().__init__(detail=detail, status_code=500)
