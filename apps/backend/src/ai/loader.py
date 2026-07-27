@@ -65,7 +65,7 @@ class AIModelLoader:
         return True
 
     def initialize_provider(
-        self, provider_class: type[AbstractAIModel]
+        self, provider_class: type[AbstractAIModel], metadata: ModelMetadata
     ) -> AbstractAIModel:
         """Instantiate the model class and load it.
 
@@ -80,7 +80,7 @@ class AIModelLoader:
         """
         self.verify_compatibility(provider_class)
         try:
-            model = provider_class()
+            model = provider_class(metadata=metadata)
             model.load()
             return model
         except Exception as e:

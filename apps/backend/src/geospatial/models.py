@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 from affine import Affine
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from shapely.geometry import MultiPolygon, Polygon
 
 
@@ -19,6 +19,20 @@ class PolygonizationRequest(BaseModel):
     )
     crs: str = Field(..., description="Coordinate Reference System (e.g., EPSG:4326)")
     connectivity: int = Field(default=4, description="Pixel connectivity (4 or 8)")
+
+    @field_validator("mask", mode="before")
+    def parse_mask(cls, v: Any) -> np.ndarray:
+        if isinstance(v, list):
+            return np.array(v)
+        return v
+
+    @field_validator("transform", mode="before")
+    def parse_transform(cls, v: Any) -> Affine:
+        if isinstance(v, list) and len(v) == 6:
+            return Affine(*v)
+        elif isinstance(v, list) and len(v) == 9:
+            return Affine(*v[:6])
+        return v
 
 
 class PolygonFeature(BaseModel):

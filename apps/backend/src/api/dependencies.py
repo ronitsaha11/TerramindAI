@@ -98,7 +98,7 @@ def get_model_manager() -> ModelManager:
     registry = ModelRegistry()
 
     segformer_meta = ModelMetadata(
-        model_id="segformer-b0",
+        model_id="nvidia/segformer-b0-finetuned-ade-512-512",
         name="SegFormer B0",
         version="v1",
         description="Semantic segmentation model",

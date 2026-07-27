@@ -13,18 +13,19 @@ from src.ai.registry import ModelRegistry
 
 
 class MockModel(AbstractAIModel):
-    def __init__(self) -> None:
+    def __init__(self, metadata: ModelMetadata | None = None) -> None:
         self.is_loaded = False
         self.is_unloaded = False
-
-    @property
-    def metadata(self) -> ModelMetadata:
-        return ModelMetadata(
+        self._metadata = metadata or ModelMetadata(
             model_id="mock-1",
             name="Mock Model",
             version="1.0",
             supported_bands=["RED"],
         )
+
+    @property
+    def metadata(self) -> ModelMetadata:
+        return self._metadata
 
     def load(self) -> None:
         self.is_loaded = True
@@ -94,25 +95,29 @@ def test_loader_metadata_validation() -> None:
 
 def test_loader_initialize_provider() -> None:
     loader = AIModelLoader()
-    model = loader.initialize_provider(MockModel)
+    meta = MockModel().metadata
+    model = loader.initialize_provider(MockModel, meta)
     assert isinstance(model, MockModel)
     assert model.is_loaded is True
 
 
 def test_loader_initialize_provider_failure() -> None:
     loader = AIModelLoader()
+    meta = MockModel().metadata
     with pytest.raises(ModelLoadError, match="Simulated load failure"):
-        loader.initialize_provider(FailingMockModel)
+        loader.initialize_provider(FailingMockModel, meta)
 
 
 def test_loader_verify_compatibility() -> None:
     loader = AIModelLoader()
 
     class IncompatibleModel:
-        pass
+        def __init__(self, metadata=None):
+            pass
 
+    meta = MockModel().metadata
     with pytest.raises(ModelLoadError):
-        loader.initialize_provider(IncompatibleModel)  # type: ignore
+        loader.initialize_provider(IncompatibleModel, meta)  # type: ignore
 
 
 def test_manager_lazy_loading_and_cache_reuse() -> None:

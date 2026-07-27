@@ -1,0 +1,8 @@
+{
+  "startup_time": 0.5271391000133008,
+  "avg_latency_ms": 51.70023332307623,
+  "errors_found": 0,
+  "ai_inference_duration_s": 1.6170476999832317,
+  "geojson_generation_duration_s": 1.532994300010614,
+  "overall": "PASS"
+}

@@ -4,8 +4,9 @@ from typing import Any
 
 from src.async_processing.enums import JobStatus
 from src.async_processing.exceptions import JobStateError
-from src.async_processing.interfaces import InMemoryJobStore, JobStoreProtocol
+from src.async_processing.interfaces import JobStoreProtocol
 from src.async_processing.models import JobProgress, JobRecord
+from src.async_processing.redis_store import RedisJobStore
 
 # Valid transitions from a specific JobStatus to a list of allowed next states.
 # Any transition not explicitly defined here raises a JobStateError.
@@ -193,7 +194,7 @@ class TaskManager:
 
 
 # Global default instances for loose coupling across the async execution context
-_default_store = InMemoryJobStore()
+_default_store = RedisJobStore()
 default_task_manager = TaskManager(_default_store)
 
 

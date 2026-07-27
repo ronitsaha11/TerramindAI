@@ -114,12 +114,10 @@ def test_loading_through_loader(dummy_metadata):
     _, provider_class = registry.lookup("test-segformer")
 
     with patch.object(SegFormerModel, "load"):
-        model_instance = loader.initialize_provider(provider_class)
+        model_instance = loader.initialize_provider(provider_class, dummy_metadata)
 
     assert isinstance(model_instance, SegFormerModel)
-    # The default instance created by initialize_provider has default metadata,
-    # but let's check it doesn't crash.
-    assert model_instance.metadata.model_id == "segformer-b0"
+    assert model_instance.metadata.model_id == "test-segformer"
     # Wait, the prompt says "loading through AIModelLoader". The loader expects
     # provider_class(). We can just test that it returns the instance.
 

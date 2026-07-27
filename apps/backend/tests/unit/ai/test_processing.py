@@ -70,7 +70,7 @@ def test_preprocessor_invalid_inputs(dummy_request):
 
     # Not a numpy array
     with pytest.raises(PreprocessingError, match="Input must be a NumPy array"):
-        preprocessor.preprocess(dummy_request, [1, 2, 3])  # type: ignore
+        preprocessor.preprocess(dummy_request, "invalid_string")  # type: ignore
 
     # Invalid dimensions (e.g., 2D instead of 3D)
     with pytest.raises(PreprocessingError, match="Expected array with 3 dimensions"):

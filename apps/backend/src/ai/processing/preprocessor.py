@@ -31,6 +31,9 @@ class RasterPreprocessor(AbstractPreprocessor):
             PreprocessingError: If input shape/dtype is invalid or preprocessing fails.
         """
         try:
+            if isinstance(raw_data, list):
+                raw_data = np.array(raw_data)
+
             if not isinstance(raw_data, np.ndarray):
                 raise PreprocessingError(
                     f"Input must be a NumPy array, got {type(raw_data).__name__}"

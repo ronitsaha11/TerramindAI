@@ -15,6 +15,7 @@ from src.async_processing.celery_app import app
 from src.async_processing.exceptions import TaskExecutionError
 from src.async_processing.manager import get_task_manager
 from src.async_processing.models import JobProgress
+from src.async_processing.registry import default_registry
 from src.geospatial.exceptions import (
     GeospatialExecutionError,
 )
@@ -111,3 +112,8 @@ def run_geospatial_vectorization_task(
         # Unexpected framework/infrastructure errors
         manager.mark_failure(job_id, error_message=str(e))
         raise TaskExecutionError(f"Unexpected error: {str(e)}") from e
+
+
+default_registry.register(
+    "run_geospatial_vectorization_task", run_geospatial_vectorization_task
+)

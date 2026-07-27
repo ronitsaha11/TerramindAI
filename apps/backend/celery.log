@@ -1,0 +1,20 @@
+ 
+ -------------- celery@LAPTOP-6E14K34L v5.6.3 (recovery)
+--- ***** ----- 
+-- ******* ---- Windows-11-10.0.26200-SP0 2026-07-27 20:59:04
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         TerraMind AI:0x195b8c5a660
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/1
+- *** --- * --- .> concurrency: 16 (solo)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . src.async_processing.tasks.ai_tasks.run_ai_inference_task
+  . src.async_processing.tasks.geospatial_tasks.run_geospatial_vectorization_task
+

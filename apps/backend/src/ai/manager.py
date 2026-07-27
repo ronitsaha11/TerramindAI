@@ -38,8 +38,8 @@ class ModelManager:
                 return self._cache[model_id]
 
             # Lazy load
-            _, provider_class = self._registry.lookup(model_id)
-            model_instance = self._loader.initialize_provider(provider_class)
+            metadata, provider_class = self._registry.lookup(model_id)
+            model_instance = self._loader.initialize_provider(provider_class, metadata)
             self._cache[model_id] = model_instance
             return model_instance
 
