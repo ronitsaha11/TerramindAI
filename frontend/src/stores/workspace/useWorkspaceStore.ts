@@ -10,6 +10,7 @@ type WorkspaceState = {
   openPanel: (id: string) => void
   closePanel: (id: string) => void
   togglePanel: (id: string) => void
+  closeTopmostPanel: () => void
 
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
@@ -42,6 +43,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       get().openPanel(id)
     }
   },
+  closeTopmostPanel: () =>
+    set((state) => ({
+      activePanels: state.activePanels.slice(0, -1)
+    })),
 
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),

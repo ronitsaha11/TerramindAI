@@ -3,11 +3,16 @@ import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
 import { PanelLeft, PanelRight, Globe } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCommandPalette } from '@/hooks/useCommandPalette'
+import { shortcutRegistry } from '@/lib/shortcuts/shortcutRegistry'
+import { formatShortcut } from '@/lib/shortcuts/shortcutParser'
 
 export function TopNav() {
   const toggleLeftSidebar = useWorkspaceStore((state) => state.toggleLeftSidebar)
   const toggleRightSidebar = useWorkspaceStore((state) => state.toggleRightSidebar)
   const { setIsOpen } = useCommandPalette()
+
+  const cmdPaletteShortcut = shortcutRegistry.find(s => s.id === 'toggle-command-palette')?.keys || 'mod+k'
+  const formattedShortcut = formatShortcut(cmdPaletteShortcut)
 
   return (
     <header className="h-12 bg-zinc-950 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0">
@@ -23,7 +28,7 @@ export function TopNav() {
         >
           <span className="hidden sm:inline">Search commands...</span>
           <kbd className="pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400">
-            <span className="text-xs">⌘</span>K
+            {formattedShortcut}
           </kbd>
         </button>
       </div>
