@@ -133,3 +133,29 @@ class SpatialAnalyticsResult(BaseModel):
     processing_duration_ms: float = Field(
         ..., description="Duration of the analytics processing in milliseconds"
     )
+
+
+class GeoJSONExportRequest(BaseModel):
+    """Request payload for exporting analytics to GeoJSON."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    spatial_analytics_result: SpatialAnalyticsResult = Field(
+        ..., description="The analytics result to export"
+    )
+
+
+class GeoJSONExportResult(BaseModel):
+    """Result of the GeoJSON export containing the FeatureCollection."""
+
+    model_config = ConfigDict(frozen=True)
+
+    feature_collection: dict[str, Any] = Field(
+        ..., description="The resulting GeoJSON FeatureCollection dictionary"
+    )
+    export_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Metadata concerning the export process"
+    )
+    export_duration_ms: float = Field(
+        ..., description="Duration of the export process in milliseconds"
+    )

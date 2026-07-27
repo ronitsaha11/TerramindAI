@@ -1,6 +1,8 @@
 from typing import Protocol
 
 from src.geospatial.models import (
+    GeoJSONExportRequest,
+    GeoJSONExportResult,
     GeometryProcessingRequest,
     GeometryProcessingResult,
     PolygonizationRequest,
@@ -64,5 +66,24 @@ class SpatialAnalyticsEngineProtocol(Protocol):
 
         Raises:
             SpatialAnalyticsError: If analytics processing fails.
+        """
+        ...
+
+
+class GeoJSONExporterProtocol(Protocol):
+    """Protocol defining the GeoJSON export behavior."""
+
+    def export(self, request: GeoJSONExportRequest) -> GeoJSONExportResult:
+        """
+        Serialize analytics results to a GeoJSON FeatureCollection.
+
+        Args:
+            request: The export request containing spatial analytics results.
+
+        Returns:
+            The GeoJSON export result containing the FeatureCollection dictionary.
+
+        Raises:
+            GeoJSONExportError: If export serialization fails.
         """
         ...

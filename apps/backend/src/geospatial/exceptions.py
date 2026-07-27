@@ -59,3 +59,17 @@ class ProjectionError(SpatialAnalyticsError):
 
     def __init__(self, detail: str = "Projection failed") -> None:
         super().__init__(detail=detail)
+
+
+class GeoJSONExportError(GeospatialProcessingError):
+    """Raised when GeoJSON export fails."""
+
+    def __init__(self, detail: str = "GeoJSON export failed") -> None:
+        super().__init__(detail=detail, status_code=500)
+
+
+class GeoJSONValidationError(GeoJSONExportError):
+    """Raised when a GeoJSON export validation constraint fails."""
+
+    def __init__(self, detail: str = "GeoJSON validation failed") -> None:
+        super().__init__(detail=detail)
