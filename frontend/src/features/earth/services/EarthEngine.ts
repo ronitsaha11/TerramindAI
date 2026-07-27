@@ -3,12 +3,14 @@ import { useMapStore } from '../stores/useMapStore'
 import { useCursorStore } from '../stores/useCursorStore'
 import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
 import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
+import { useEnvironmentStore } from '../stores/useEnvironmentStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
 import { LayerManager } from './LayerManager'
 import { FPSTracker } from './FPSTracker'
+import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
@@ -25,7 +27,9 @@ export class EarthEngine {
   private _deckOverlayManager: DeckOverlayManager | null = null
   private _layerManager: LayerManager | null = null
   private _fpsTracker: FPSTracker | null = null
+  private _environmentController: EnvironmentController | null = null
   private _unsubWorkspace: (() => void) | null = null
+  private _unsubEnvironment: (() => void) | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -89,11 +93,13 @@ export class EarthEngine {
       const coordinates = new CoordinateService()
       const projection = new ProjectionService()
       const fpsTracker = new FPSTracker()
+      const environmentController = new EnvironmentController()
 
       this._camera = camera
       this._projection = projection
       this._coordinates = coordinates
       this._fpsTracker = fpsTracker
+      this._environmentController = environmentController
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
@@ -168,6 +174,17 @@ export class EarthEngine {
           description: 'Demonstration scatter overlay — major world cities',
         })
 
+        // ─── Environment (Terrain/Sky) ────────────────
+        environmentController.initialize(map)
+        
+        // Initial environment sync
+        environmentController.sync(useEnvironmentStore.getState())
+        
+        // Subscribe to environment store
+        this._unsubEnvironment = useEnvironmentStore.subscribe((state) => {
+          environmentController.sync(state)
+        })
+
         this.setState('ready')
       })
 
@@ -230,6 +247,11 @@ export class EarthEngine {
       this._unsubWorkspace = null
     }
 
+    if (this._unsubEnvironment) {
+      this._unsubEnvironment()
+      this._unsubEnvironment = null
+    }
+
     this._fpsTracker?.stop()
     this._fpsTracker = null
 
@@ -244,6 +266,9 @@ export class EarthEngine {
 
     this._layerManager?.destroy()
     this._layerManager = null
+
+    this._environmentController?.destroy()
+    this._environmentController = null
 
     this._deckOverlayManager?.destroy()
     this._deckOverlayManager = null

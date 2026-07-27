@@ -5,9 +5,12 @@ import {
   LineChart, 
   Server,
   PanelLeft,
-  PanelRight
+  PanelRight,
+  Mountain,
+  Globe
 } from 'lucide-react'
 import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
+import { useEnvironmentStore } from '@/features/earth/stores/useEnvironmentStore'
 import { type ComponentType } from 'react'
 
 export type RegistryCommand = {
@@ -85,5 +88,23 @@ export const commandRegistry: RegistryCommand[] = [
     group: 'Layout',
     keywords: ['sidebar', 'right', 'toggle', 'layout', 'inspector'],
     action: () => useWorkspaceStore.getState().toggleRightSidebar(),
+  },
+  {
+    id: 'toggle-3d-terrain',
+    title: 'Toggle 3D Terrain',
+    description: 'Enable or disable 3D terrain rendering',
+    icon: Mountain,
+    group: 'Environment',
+    keywords: ['terrain', '3d', 'elevation', 'mountains', 'environment'],
+    action: () => useEnvironmentStore.getState().toggleTerrain(),
+  },
+  {
+    id: 'toggle-sky',
+    title: 'Toggle Sky',
+    description: 'Enable or disable sky atmospheric rendering',
+    icon: Globe,
+    group: 'Environment',
+    keywords: ['sky', 'atmosphere', 'environment'],
+    action: () => useEnvironmentStore.getState().toggleSky(),
   },
 ]

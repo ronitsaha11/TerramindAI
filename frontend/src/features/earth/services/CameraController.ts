@@ -173,4 +173,18 @@ export class CameraController {
     if (!this._map) return
     this._map.resetNorth()
   }
+
+  /** 
+   * Temporary terrain demonstration preset for development and testing. 
+   * Provides a dramatic 3D view of Mount Everest.
+   */
+  flyToTerrainPreset(): void {
+    this.flyTo({
+      center: [86.9250, 27.9881],
+      zoom: 12,
+      pitch: 75,
+      bearing: 45,
+      duration: 3000,
+    })
+  }
 }
