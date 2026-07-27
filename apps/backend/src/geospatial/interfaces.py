@@ -5,6 +5,8 @@ from src.geospatial.models import (
     GeometryProcessingResult,
     PolygonizationRequest,
     PolygonizationResult,
+    SpatialAnalyticsRequest,
+    SpatialAnalyticsResult,
 )
 
 
@@ -43,5 +45,24 @@ class GeometryProcessorProtocol(Protocol):
 
         Raises:
             GeometryProcessingError: If processing fails.
+        """
+        ...
+
+
+class SpatialAnalyticsEngineProtocol(Protocol):
+    """Protocol defining the spatial analytics behavior."""
+
+    def analyze(self, request: SpatialAnalyticsRequest) -> SpatialAnalyticsResult:
+        """
+        Extract quantitative spatial intelligence from geometries.
+
+        Args:
+            request: The spatial analytics request.
+
+        Returns:
+            The spatial analytics result containing features and statistics.
+
+        Raises:
+            SpatialAnalyticsError: If analytics processing fails.
         """
         ...

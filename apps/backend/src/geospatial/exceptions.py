@@ -38,3 +38,24 @@ class GeometryValidationError(GeometryProcessingError):
 
     def __init__(self, detail: str = "Geometry validation failed") -> None:
         super().__init__(detail=detail)
+
+
+class SpatialAnalyticsError(GeospatialProcessingError):
+    """Raised when spatial analytics fails."""
+
+    def __init__(self, detail: str = "Spatial analytics failed") -> None:
+        super().__init__(detail=detail, status_code=500)
+
+
+class AnalyticsValidationError(SpatialAnalyticsError):
+    """Raised when an analytics validation constraint fails."""
+
+    def __init__(self, detail: str = "Analytics validation failed") -> None:
+        super().__init__(detail=detail)
+
+
+class ProjectionError(SpatialAnalyticsError):
+    """Raised when a geometry projection operation fails."""
+
+    def __init__(self, detail: str = "Projection failed") -> None:
+        super().__init__(detail=detail)

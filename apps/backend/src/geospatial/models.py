@@ -80,3 +80,56 @@ class GeometryProcessingResult(BaseModel):
     processing_duration_ms: float = Field(
         ..., description="Duration of the geometry processing in milliseconds"
     )
+
+
+class SpatialAnalyticsRequest(BaseModel):
+    """Request payload for executing spatial analytics on processed geometries."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    geometry_processing_result: GeometryProcessingResult = Field(
+        ..., description="The processed geometries to analyze"
+    )
+
+
+class SpatialStatistics(BaseModel):
+    """Metrics calculated for a single feature."""
+
+    model_config = ConfigDict(frozen=True)
+
+    geometry_type: str = Field(
+        ..., description="The geometry type (e.g. Polygon, MultiPolygon)"
+    )
+    area_sqm: float = Field(..., description="Area of the geometry in square meters")
+    perimeter_m: float = Field(
+        ..., description="Perimeter/length of the geometry in meters"
+    )
+    centroid: tuple[float, float] = Field(
+        ..., description="Centroid (longitude, latitude) of the geometry"
+    )
+    bbox: tuple[float, float, float, float] = Field(
+        ..., description="Bounding box (minx, miny, maxx, maxy)"
+    )
+
+
+class SpatialAnalyticsResult(BaseModel):
+    """Result containing analytics for the requested geometries."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    analyzed_features: list[dict[str, Any]] = Field(
+        ...,
+        description=(
+            "List of dictionaries pairing features with their SpatialStatistics"
+        ),
+    )
+    dataset_summary: dict[str, Any] = Field(
+        ..., description="Aggregated statistics for the entire dataset"
+    )
+    crs: str = Field(..., description="Coordinate Reference System (e.g., EPSG:4326)")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional processing metadata"
+    )
+    processing_duration_ms: float = Field(
+        ..., description="Duration of the analytics processing in milliseconds"
+    )
