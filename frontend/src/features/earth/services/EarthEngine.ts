@@ -5,6 +5,7 @@ import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
+import { LayerManager } from './LayerManager'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
@@ -18,8 +19,7 @@ export class EarthEngine {
   private _camera: CameraController | null = null
   private _projection: ProjectionService | null = null
   private _deckOverlayManager: DeckOverlayManager | null = null
-  // Reserved for future additional renderers — placeholder
-  private declare _deck: unknown
+  private _layerManager: LayerManager | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -79,7 +79,6 @@ export class EarthEngine {
 
       this._map = map
 
-      // Instantiate services
       const camera = new CameraController()
       const coordinates = new CoordinateService()
       const projection = new ProjectionService()
@@ -90,7 +89,7 @@ export class EarthEngine {
       map.once('load', () => {
         if (this._state !== 'mounting') return
 
-        // Bind services to the live renderer
+        // ─── Bind services ──────────────────────────
         camera.bind(map)
         projection.bind(map)
         camera.syncFromRenderer()
@@ -108,29 +107,29 @@ export class EarthEngine {
 
         // ─── Cursor events ───────────────────────────
         const { setCursor, clearCursor } = useCursorStore.getState()
-
         map.on('mousemove', (e) => {
           const coord = coordinates.unproject(map, { x: e.point.x, y: e.point.y })
-          if (coord) {
-            setCursor({ ...coord, x: e.point.x, y: e.point.y })
-          }
+          if (coord) setCursor({ ...coord, x: e.point.x, y: e.point.y })
         })
+        map.on('mouseout', () => clearCursor())
 
-        map.on('mouseout', () => {
-          clearCursor()
-        })
-
-        // ─── Deck.gl overlay pipeline ──────────────
+        // ─── Deck.gl & Layer Manager ─────────────────
         const deckManager = new DeckOverlayManager()
-        this._deckOverlayManager = deckManager
         deckManager.initialize(map)
+        this._deckOverlayManager = deckManager
 
-        // Register the demonstration ScatterplotLayer through the registry
-        deckManager.addOverlay(
-          'demo-cities',
-          DeckOverlayManager.buildDemoLayer(),
-          { category: 'scatter', label: 'Demo Cities' },
-        )
+        const layerManager = new LayerManager()
+        layerManager.initialize(deckManager)
+        this._layerManager = layerManager
+
+        // Register demo layer through LayerManager (never directly through DeckOverlayManager)
+        layerManager.registerLayer({
+          id: 'demo-cities',
+          label: 'Demo Cities',
+          category: 'scatter',
+          style: { opacity: 0.85, visible: true },
+          description: 'Demonstration scatter overlay — major world cities',
+        })
 
         this.setState('ready')
       })
@@ -163,9 +162,16 @@ export class EarthEngine {
     this._camera?.fitBounds(bounds, options)
   }
 
-  /** Access the overlay manager. React components must never access Deck.gl directly. */
-  getOverlayManager(): DeckOverlayManager | null {
-    return this._deckOverlayManager
+  // ─────────────────────────────────────────────
+  // Public Layer API
+  // ─────────────────────────────────────────────
+
+  /** 
+   * Expose the LayerManager for system-level orchestration only.
+   * React components must call this through services, never directly.
+   */
+  getLayerManager(): LayerManager | null {
+    return this._layerManager
   }
 
   // ─────────────────────────────────────────────
@@ -187,6 +193,9 @@ export class EarthEngine {
 
     this._projection?.unbind()
     this._projection = null
+
+    this._layerManager?.destroy()
+    this._layerManager = null
 
     this._deckOverlayManager?.destroy()
     this._deckOverlayManager = null
