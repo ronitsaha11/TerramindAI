@@ -1,0 +1,26 @@
+from src.core.exceptions import AppException
+
+
+class GeospatialProcessingError(AppException):
+    """Base exception for geospatial processing errors."""
+
+    def __init__(
+        self,
+        detail: str = "A geospatial processing error occurred",
+        status_code: int = 500,
+    ) -> None:
+        super().__init__(status_code=status_code, detail=detail)
+
+
+class PolygonizationError(GeospatialProcessingError):
+    """Raised when polygonization of a raster fails."""
+
+    def __init__(self, detail: str = "Polygonization failed") -> None:
+        super().__init__(detail=detail, status_code=500)
+
+
+class TransformValidationError(GeospatialProcessingError):
+    """Raised when an invalid affine transform is provided."""
+
+    def __init__(self, detail: str = "Invalid affine transform") -> None:
+        super().__init__(detail=detail, status_code=400)
