@@ -48,7 +48,11 @@ export class EnvironmentController {
   /** Tear down terrain and sources. */
   destroy(): void {
     if (this._map) {
-      this._map.setTerrain(null)
+      try {
+        this._map.setTerrain(null)
+      } catch {
+        // Safe to ignore if style is not fully loaded
+      }
       // Attempt safe removal of the DEM source
       try {
         if (this._map.getSource(TERRAIN_CONFIG.SOURCE_ID)) {

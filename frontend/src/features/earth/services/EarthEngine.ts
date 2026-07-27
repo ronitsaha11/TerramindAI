@@ -64,7 +64,9 @@ export class EarthEngine {
   }
 
   initialize(): void {
-    if (this._state === 'ready' || this._state === 'mounting') return
+    if (this._state === 'ready' || this._state === 'mounting') {
+      return
+    }
     if (this._state === 'destroyed' || this._state === 'error') {
       console.warn(`[EarthEngine] Cannot initialize — engine is in "${this._state}" state.`)
       return

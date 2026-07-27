@@ -1,10 +1,10 @@
  
  -------------- celery@LAPTOP-6E14K34L v5.6.3 (recovery)
 --- ***** ----- 
--- ******* ---- Windows-11-10.0.26200-SP0 2026-07-27 20:59:04
+-- ******* ---- Windows-11-10.0.26200-SP0 2026-07-28 01:58:36
 - *** --- * --- 
 - ** ---------- [config]
-- ** ---------- .> app:         TerraMind AI:0x195b8c5a660
+- ** ---------- .> app:         TerraMind AI:0x15b8268a660
 - ** ---------- .> transport:   redis://localhost:6379/0
 - ** ---------- .> results:     redis://localhost:6379/1
 - *** --- * --- .> concurrency: 16 (solo)
