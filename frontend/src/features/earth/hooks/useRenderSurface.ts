@@ -1,17 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { EarthEngine } from '../services/EarthEngine'
 
-export function useRenderSurface(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
+export function useRenderSurface(containerRef: React.RefObject<HTMLDivElement | null>) {
   const engineRef = useRef<EarthEngine | null>(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const container = containerRef.current
+    if (!container) return
 
     const engine = EarthEngine.getInstance()
     engineRef.current = engine
 
-    engine.attach(canvas)
+    engine.attach(container)
     engine.initialize()
 
     const observer = new ResizeObserver((entries) => {
@@ -20,12 +20,12 @@ export function useRenderSurface(canvasRef: React.RefObject<HTMLCanvasElement | 
         engine.resize(width, height)
       }
     })
-    observer.observe(canvas)
+    observer.observe(container)
 
     return () => {
       observer.disconnect()
       engine.destroy()
       engineRef.current = null
     }
-  }, [canvasRef])
+  }, [containerRef])
 }

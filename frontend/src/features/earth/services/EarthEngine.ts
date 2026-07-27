@@ -1,15 +1,17 @@
+import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
 
-export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'destroyed'
+export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
 export class EarthEngine {
   private static instance: EarthEngine | null = null
 
   private _state: EngineState = 'uninitialized'
-  private _canvas: HTMLCanvasElement | null = null
-  private _resizeObserver: ResizeObserver | null = null
+  private _hostElement: HTMLElement | null = null
+  private _map: MapLibreMap | null = null
+  // Reserved for future Deck.gl integration — placeholder until Phase 11.4
+  private declare _deck: unknown
 
-  // Singleton accessor — ensures a single engine across the app lifetime
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
       EarthEngine.instance = new EarthEngine()
@@ -28,58 +30,92 @@ export class EarthEngine {
     setEngineReady(state === 'ready')
   }
 
-  /** Attach to a canvas DOM element. No-op if already attached. */
-  attach(canvas: HTMLCanvasElement): void {
+  /** Attach to a host DOM element. Accepts both canvas and div containers. */
+  attach(element: HTMLElement): void {
     if (this._state === 'destroyed') {
       console.warn('[EarthEngine] Cannot attach — engine is destroyed.')
       return
     }
-    if (this._canvas === canvas) return
-    if (this._canvas) {
+    if (this._hostElement === element) return
+    if (this._hostElement) {
       this.detach()
     }
-    this._canvas = canvas
+    this._hostElement = element
   }
 
-  /** Detach from the current canvas. */
+  /** Detach from the current host element. */
   detach(): void {
-    this._canvas = null
+    this._hostElement = null
   }
 
-  /** Initialize the engine. Idempotent — safe to call multiple times. */
+  /** Initialize the engine. Idempotent — duplicate calls are ignored. */
   initialize(): void {
     if (this._state === 'ready' || this._state === 'mounting') {
       return
     }
-    if (this._state === 'destroyed') {
-      console.warn('[EarthEngine] Cannot initialize — engine is destroyed.')
+    if (this._state === 'destroyed' || this._state === 'error') {
+      console.warn(`[EarthEngine] Cannot initialize — engine is in "${this._state}" state.`)
+      return
+    }
+    if (!this._hostElement) {
+      console.error('[EarthEngine] Cannot initialize — no host element attached.')
       return
     }
 
     this.setState('mounting')
 
-    // Stub: engine initialization sequence
-    // In future sprints, MapLibre / Deck.gl / Three.js will be attached here.
-    // For now, transition to ready on the next microtask.
-    Promise.resolve().then(() => {
-      if (this._state !== 'mounting') return
-      this.setState('ready')
-    })
+    try {
+      const map = new MapLibreMap({
+        container: this._hostElement,
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [0, 20],
+        zoom: 2,
+        pitch: 0,
+        bearing: 0,
+        attributionControl: {},
+      })
+
+      this._map = map
+
+      map.once('load', () => {
+        if (this._state !== 'mounting') return
+        this.setState('ready')
+      })
+
+      map.on('error', (e) => {
+        console.error('[EarthEngine] MapLibre error:', e.error)
+        if (this._state === 'ready' || this._state === 'mounting') {
+          this.setState('error')
+        }
+      })
+    } catch (err) {
+      console.error('[EarthEngine] Failed to create MapLibre map:', err)
+      this.setState('error')
+    }
   }
 
-  /** Forward a resize event to the renderer. */
+  /** Forward resize to the MapLibre renderer. */
   resize(width: number, height: number): void {
-    if (this._state !== 'ready') return
-    // Future: renderer.resize(width, height)
+    if (!this._map) return
     void width
     void height
+    this._map.resize()
   }
 
-  /** Tear down the engine and release all resources. */
+  /** Tear down the engine and release all WebGL resources. */
   destroy(): void {
     if (this._state === 'destroyed') return
-    this._resizeObserver?.disconnect()
-    this._resizeObserver = null
+
+    if (this._map) {
+      try {
+        this._map.remove()
+      } catch (err) {
+        console.warn('[EarthEngine] Error during map removal:', err)
+      }
+      this._map = null
+    }
+
+    this._deck = null
     this.detach()
     this.setState('destroyed')
     EarthEngine.instance = null

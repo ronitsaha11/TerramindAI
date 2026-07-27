@@ -2,14 +2,14 @@ import { useRef } from 'react'
 import { useRenderSurface } from '../hooks/useRenderSurface'
 
 export function RenderSurface() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  useRenderSurface(canvasRef)
+  useRenderSurface(containerRef)
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full block"
+    <div
+      ref={containerRef}
+      className="absolute inset-0 w-full h-full"
       aria-label="Earth Rendering Surface"
     />
   )
