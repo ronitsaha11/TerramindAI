@@ -4,7 +4,7 @@ from typing import Any
 
 from src.async_processing.enums import JobStatus
 from src.async_processing.exceptions import JobStateError
-from src.async_processing.interfaces import JobStoreProtocol
+from src.async_processing.interfaces import InMemoryJobStore, JobStoreProtocol
 from src.async_processing.models import JobProgress, JobRecord
 
 # Valid transitions from a specific JobStatus to a list of allowed next states.
@@ -182,3 +182,13 @@ class TaskManager:
         )
         self._store.update_job(updated_job)
         return updated_job
+
+
+# Global default instances for loose coupling across the async execution context
+_default_store = InMemoryJobStore()
+default_task_manager = TaskManager(_default_store)
+
+
+def get_task_manager() -> TaskManager:
+    """Return the global task manager singleton."""
+    return default_task_manager
