@@ -28,6 +28,20 @@ services:
   #     dockerfile: docker/Dockerfile.backend
   #   ...
 
+  # Placeholder for Celery Worker service
+  # celery_worker:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.backend
+  #   command: celery -A src.async_processing.worker worker -l info
+  #   depends_on:
+  #     - redis
+  #     - db
+  #   ...
+  #     context: .
+  #     dockerfile: docker/Dockerfile.backend
+  #   ...
+
   # Placeholder for Frontend service
   # frontend:
   #   build:
