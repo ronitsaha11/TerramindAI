@@ -2,6 +2,7 @@ import logging
 
 # Import tasks to ensure they are registered with Celery
 import src.async_processing.tasks.ai_tasks  # noqa: F401
+import src.async_processing.tasks.geospatial_tasks  # noqa: F401
 from src.async_processing.celery_app import app
 
 logger = logging.getLogger(__name__)
