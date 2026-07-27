@@ -81,3 +81,9 @@ class InferenceResult(BaseModel):
         default_factory=dict,
         description="The actual output data from the postprocessor",
     )
+    geojson: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional GeoJSON FeatureCollection generated from the segmentation mask"
+        ),
+    )

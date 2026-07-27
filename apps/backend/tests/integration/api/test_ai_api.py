@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -11,7 +11,8 @@ from src.ai.exceptions import (
     ModelLoadError,
 )
 from src.ai.models import InferenceResult, PredictionMetadata
-from src.api.dependencies import get_ai_inference_service
+from src.api.dependencies import get_ai_inference_service, get_geospatial_service
+from src.geospatial.models import GeoJSONExportResult
 from src.main import app
 
 
@@ -32,8 +33,23 @@ def mock_ai_service():
 
 
 @pytest.fixture
-async def async_client(mock_ai_service) -> AsyncGenerator[AsyncClient, None]:
+def mock_geospatial_service():
+    service = MagicMock()
+    mock_result = GeoJSONExportResult(
+        feature_collection={"type": "FeatureCollection", "features": []},
+        export_metadata={},
+        export_duration_ms=1.0,
+    )
+    service.process_mask.return_value = mock_result
+    return service
+
+
+@pytest.fixture
+async def async_client(
+    mock_ai_service, mock_geospatial_service
+) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_ai_inference_service] = lambda: mock_ai_service
+    app.dependency_overrides[get_geospatial_service] = lambda: mock_geospatial_service
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -41,12 +57,19 @@ async def async_client(mock_ai_service) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.mark.asyncio
-async def test_successful_inference_request(async_client, mock_ai_service):
+async def test_successful_inference_request(
+    async_client, mock_ai_service, mock_geospatial_service
+):
     payload = {
         "project_id": str(uuid.uuid4()),
         "scene_id": "test_scene",
         "model_id": "test_model",
-        "parameters": {"raw_data": [[0, 255]]},
+        "parameters": {
+            "raw_data": [[0, 255]],
+            "export_geojson": True,
+            "transform": [1.0, 0.0, 0.0, 0.0, -1.0, 10.0],
+            "crs": "EPSG:4326",
+        },
     }
 
     response = await async_client.post("/api/v1/ai/inference", json=payload)
@@ -56,8 +79,10 @@ async def test_successful_inference_request(async_client, mock_ai_service):
     assert "request_id" in data
     assert data["prediction_metadata"]["model_version"] == "1.0"
     assert data["result_data"]["mask"] == [[0, 1], [1, 0]]
+    assert data["geojson"]["type"] == "FeatureCollection"
 
     mock_ai_service.execute_inference.assert_called_once()
+    mock_geospatial_service.process_mask.assert_called_once()
 
 
 @pytest.mark.asyncio

@@ -18,6 +18,11 @@ from src.analytics.providers.base import RasterProvider
 from src.analytics.providers.cog_provider import COGRasterProvider
 from src.analytics.statistics import default_engine as default_statistics_engine
 from src.db.session import AsyncSessionLocal
+from src.geospatial.analytics import SpatialAnalyticsEngine
+from src.geospatial.geojson_exporter import GeoJSONExporter
+from src.geospatial.geometry_processor import GeometryProcessor
+from src.geospatial.polygonizer import RasterPolygonizer
+from src.geospatial.service import GeospatialService
 from src.providers.catalog.base import CatalogProvider
 from src.providers.catalog.earth_search import EarthSearchProvider
 from src.providers.tiles.base import TileProvider
@@ -126,4 +131,37 @@ def get_ai_inference_service(
         model_manager=model_manager,
         preprocessor=preprocessor,
         postprocessor=postprocessor,
+    )
+
+
+def get_polygonizer() -> RasterPolygonizer:
+    return RasterPolygonizer()
+
+
+def get_geometry_processor() -> GeometryProcessor:
+    return GeometryProcessor()
+
+
+def get_spatial_analytics_engine() -> SpatialAnalyticsEngine:
+    return SpatialAnalyticsEngine()
+
+
+def get_geojson_exporter() -> GeoJSONExporter:
+    return GeoJSONExporter()
+
+
+def get_geospatial_service(
+    polygonizer: Annotated[RasterPolygonizer, Depends(get_polygonizer)],
+    geometry_processor: Annotated[GeometryProcessor, Depends(get_geometry_processor)],
+    analytics_engine: Annotated[
+        SpatialAnalyticsEngine, Depends(get_spatial_analytics_engine)
+    ],
+    geojson_exporter: Annotated[GeoJSONExporter, Depends(get_geojson_exporter)],
+) -> GeospatialService:
+    """Dependency provider for GeospatialService."""
+    return GeospatialService(
+        polygonizer=polygonizer,
+        geometry_processor=geometry_processor,
+        analytics_engine=analytics_engine,
+        geojson_exporter=geojson_exporter,
     )
