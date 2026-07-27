@@ -59,6 +59,7 @@ class AbstractAIModel(ABC):
     Contract for a deployable AI model.
     """
 
+    @abstractmethod
     def __init__(self, metadata: ModelMetadata | None = None) -> None:
         pass
 

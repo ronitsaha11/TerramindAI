@@ -18,7 +18,3 @@ app.conf.update(
 
 # Autodiscover tasks from registered apps/packages
 app.autodiscover_tasks(["src.async_processing"])
-
-# Explicitly import task modules to ensure they are registered with Celery and TaskRegistry
-import src.async_processing.tasks.ai_tasks  # noqa: F401
-import src.async_processing.tasks.geospatial_tasks  # noqa: F401

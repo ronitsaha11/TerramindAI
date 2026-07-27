@@ -1,6 +1,7 @@
 """
 TerraMind AI - End-to-End Backend Smoke Test
-Validates the complete distributed system by communicating with the live REST API over HTTP.
+Validates the complete distributed system by communicating
+with the live REST API over HTTP.
 """
 
 import asyncio
@@ -16,8 +17,9 @@ from typing import Any
 import httpx
 
 # Ensure we can import from src if needed, though this is purely via HTTP
-# We only use it for any shared Enums if absolutely necessary, but we'll try to keep it standalone
-# for standard smoke testing principles. We'll redefine minimal constants.
+# We only use it for any shared Enums if absolutely necessary, but we'll try to
+# keep it standalone for standard smoke testing principles. We'll redefine
+# minimal constants.
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "1.5"))
@@ -264,9 +266,8 @@ async def generate_reports() -> None:
 
     with open(reports_dir / "smoke-test-report.md", "w") as f:
         f.write("# TerraMind AI Smoke Test Report\n\n")
-        f.write(
-            f"**Overall Verdict**: {'PASS' if metrics.errors_found == 0 else 'FAIL'}\n\n"
-        )
+        verdict = "PASS" if metrics.errors_found == 0 else "FAIL"
+        f.write(f"**Overall Verdict**: {verdict}\n\n")
         f.write(f"- Errors Found: {metrics.errors_found}\n")
         f.write(f"- Average Latency: {metrics.avg_latency:.2f} ms\n")
         f.write(f"- AI Inference Time: {metrics.ai_inference_duration:.2f} s\n")
