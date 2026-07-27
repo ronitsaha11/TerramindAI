@@ -1,6 +1,9 @@
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
+import { useCursorStore } from '../stores/useCursorStore'
 import { CameraController } from './CameraController'
+import { CoordinateService } from './CoordinateService'
+import { ProjectionService } from './ProjectionService'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
@@ -12,6 +15,7 @@ export class EarthEngine {
   private _hostElement: HTMLElement | null = null
   private _map: MapLibreMap | null = null
   private _camera: CameraController | null = null
+  private _projection: ProjectionService | null = null
   // Reserved for future Deck.gl integration — placeholder until Phase 11.4
   private declare _deck: unknown
 
@@ -33,16 +37,13 @@ export class EarthEngine {
     setEngineReady(state === 'ready')
   }
 
-  /** Attach to a host DOM element. */
   attach(element: HTMLElement): void {
     if (this._state === 'destroyed') {
       console.warn('[EarthEngine] Cannot attach — engine is destroyed.')
       return
     }
     if (this._hostElement === element) return
-    if (this._hostElement) {
-      this.detach()
-    }
+    if (this._hostElement) this.detach()
     this._hostElement = element
   }
 
@@ -50,7 +51,6 @@ export class EarthEngine {
     this._hostElement = null
   }
 
-  /** Initialize the engine. Idempotent — duplicate calls are ignored. */
   initialize(): void {
     if (this._state === 'ready' || this._state === 'mounting') return
     if (this._state === 'destroyed' || this._state === 'error') {
@@ -77,27 +77,45 @@ export class EarthEngine {
 
       this._map = map
 
-      // Instantiate and bind CameraController
+      // Instantiate services
       const camera = new CameraController()
+      const coordinates = new CoordinateService()
+      const projection = new ProjectionService()
+
       this._camera = camera
+      this._projection = projection
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
 
-        // Bind camera to the now-ready renderer
+        // Bind services to the live renderer
         camera.bind(map)
+        projection.bind(map)
         camera.syncFromRenderer()
 
-        // Forward renderer camera events → CameraController
+        // ─── Camera events ───────────────────────────
         const syncEvents = ['move', 'zoom', 'rotate', 'pitch'] as const
         for (const evt of syncEvents) {
           map.on(evt, () => camera.syncFromRenderer())
         }
-
         map.on('movestart', () => camera.setMoving(true))
         map.on('moveend', () => {
           camera.syncFromRenderer()
           camera.setMoving(false)
+        })
+
+        // ─── Cursor events ───────────────────────────
+        const { setCursor, clearCursor } = useCursorStore.getState()
+
+        map.on('mousemove', (e) => {
+          const coord = coordinates.unproject(map, { x: e.point.x, y: e.point.y })
+          if (coord) {
+            setCursor({ ...coord, x: e.point.x, y: e.point.y })
+          }
+        })
+
+        map.on('mouseout', () => {
+          clearCursor()
         })
 
         this.setState('ready')
@@ -116,7 +134,7 @@ export class EarthEngine {
   }
 
   // ─────────────────────────────────────────────
-  // Public Camera API — React calls these only
+  // Public Camera API
   // ─────────────────────────────────────────────
 
   flyTo(options: FlyToOptions): void {
@@ -147,6 +165,11 @@ export class EarthEngine {
 
     this._camera?.unbind()
     this._camera = null
+
+    this._projection?.unbind()
+    this._projection = null
+
+    useCursorStore.getState().clearCursor()
 
     if (this._map) {
       try {

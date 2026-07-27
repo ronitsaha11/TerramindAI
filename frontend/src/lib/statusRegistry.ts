@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { type WorkspaceStatusState } from '@/stores/workspace/useWorkspaceStatusStore'
 import { useCameraStore } from '@/features/earth/stores/useCameraStore'
+import { useCursorStore } from '@/features/earth/stores/useCursorStore'
 
 export type StatusPosition = 'left' | 'center' | 'right'
 
@@ -43,25 +44,29 @@ export const statusRegistry: RegistryStatusItem[] = [
   },
   {
     id: 'latitude',
-    label: 'Latitude (from camera)',
+    label: 'Cursor Latitude',
     icon: Globe,
     position: 'center',
     formatter: () => {
+      const { latitude } = useCursorStore.getState()
       const { camera } = useCameraStore.getState()
-      const dir = camera.latitude >= 0 ? 'N' : 'S'
-      return `${Math.abs(camera.latitude).toFixed(6)}° ${dir}`
+      const lat = latitude !== null ? latitude : camera.latitude
+      const dir = lat >= 0 ? 'N' : 'S'
+      return `${Math.abs(lat).toFixed(6)}° ${dir}`
     },
     visible: () => true,
   },
   {
     id: 'longitude',
-    label: 'Longitude (from camera)',
+    label: 'Cursor Longitude',
     icon: Navigation,
     position: 'center',
     formatter: () => {
+      const { longitude } = useCursorStore.getState()
       const { camera } = useCameraStore.getState()
-      const dir = camera.longitude >= 0 ? 'E' : 'W'
-      return `${Math.abs(camera.longitude).toFixed(6)}° ${dir}`
+      const lng = longitude !== null ? longitude : camera.longitude
+      const dir = lng >= 0 ? 'E' : 'W'
+      return `${Math.abs(lng).toFixed(6)}° ${dir}`
     },
     visible: () => true,
   },

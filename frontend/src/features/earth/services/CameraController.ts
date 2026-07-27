@@ -8,9 +8,12 @@ import {
   type CameraBounds
 } from '../types/camera.types'
 
+export type CameraListener = (camera: CameraPosition) => void
+
 export class CameraController {
   private _map: MapLibreMap | null = null
   private _isSyncing = false
+  private _listeners = new Set<CameraListener>()
 
   /** Bind to a MapLibre instance. */
   bind(map: MapLibreMap): void {
@@ -20,6 +23,17 @@ export class CameraController {
   /** Unbind from the current renderer. */
   unbind(): void {
     this._map = null
+    this._listeners.clear()
+  }
+
+  /** Register a listener that fires on every camera update. */
+  subscribe(listener: CameraListener): void {
+    this._listeners.add(listener)
+  }
+
+  /** Unregister a previously registered camera listener. */
+  unsubscribe(listener: CameraListener): void {
+    this._listeners.delete(listener)
   }
 
   // ─────────────────────────────────────────────
@@ -42,6 +56,10 @@ export class CameraController {
 
     const { setCamera } = useCameraStore.getState()
     setCamera(camera)
+
+    for (const listener of this._listeners) {
+      listener(camera)
+    }
   }
 
   /** Signal that the camera is actively moving. */
