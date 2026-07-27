@@ -1,9 +1,12 @@
 import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
+import { useCameraStore } from '@/features/earth/stores/useCameraStore'
 import { statusRegistry, type StatusPosition } from '@/lib/statusRegistry'
 import { StatusItem } from './StatusItem'
 
 export function StatusBar() {
   const state = useWorkspaceStatusStore()
+  // Subscribe to camera store so re-renders happen on every move event
+  useCameraStore()
 
   const renderGroup = (position: StatusPosition) => {
     return statusRegistry

@@ -10,6 +10,7 @@ import {
   Bell 
 } from 'lucide-react'
 import { type WorkspaceStatusState } from '@/stores/workspace/useWorkspaceStatusStore'
+import { useCameraStore } from '@/features/earth/stores/useCameraStore'
 
 export type StatusPosition = 'left' | 'center' | 'right'
 
@@ -42,26 +43,37 @@ export const statusRegistry: RegistryStatusItem[] = [
   },
   {
     id: 'latitude',
-    label: 'Latitude',
+    label: 'Latitude (from camera)',
     icon: Globe,
     position: 'center',
-    formatter: (state) => `${state.latitude.toFixed(4)}° N`,
+    formatter: () => {
+      const { camera } = useCameraStore.getState()
+      const dir = camera.latitude >= 0 ? 'N' : 'S'
+      return `${Math.abs(camera.latitude).toFixed(6)}° ${dir}`
+    },
     visible: () => true,
   },
   {
     id: 'longitude',
-    label: 'Longitude',
+    label: 'Longitude (from camera)',
     icon: Navigation,
     position: 'center',
-    formatter: (state) => `${state.longitude.toFixed(4)}° E`,
+    formatter: () => {
+      const { camera } = useCameraStore.getState()
+      const dir = camera.longitude >= 0 ? 'E' : 'W'
+      return `${Math.abs(camera.longitude).toFixed(6)}° ${dir}`
+    },
     visible: () => true,
   },
   {
     id: 'zoom',
-    label: 'Zoom Level',
+    label: 'Zoom Level (from camera)',
     icon: Monitor,
     position: 'right',
-    formatter: (state) => state.zoom.toFixed(2),
+    formatter: () => {
+      const { camera } = useCameraStore.getState()
+      return camera.zoom.toFixed(2)
+    },
     visible: () => true,
   },
   {

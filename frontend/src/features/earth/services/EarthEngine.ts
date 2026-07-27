@@ -1,5 +1,7 @@
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
+import { CameraController } from './CameraController'
+import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -9,6 +11,7 @@ export class EarthEngine {
   private _state: EngineState = 'uninitialized'
   private _hostElement: HTMLElement | null = null
   private _map: MapLibreMap | null = null
+  private _camera: CameraController | null = null
   // Reserved for future Deck.gl integration — placeholder until Phase 11.4
   private declare _deck: unknown
 
@@ -30,7 +33,7 @@ export class EarthEngine {
     setEngineReady(state === 'ready')
   }
 
-  /** Attach to a host DOM element. Accepts both canvas and div containers. */
+  /** Attach to a host DOM element. */
   attach(element: HTMLElement): void {
     if (this._state === 'destroyed') {
       console.warn('[EarthEngine] Cannot attach — engine is destroyed.')
@@ -43,16 +46,13 @@ export class EarthEngine {
     this._hostElement = element
   }
 
-  /** Detach from the current host element. */
   detach(): void {
     this._hostElement = null
   }
 
   /** Initialize the engine. Idempotent — duplicate calls are ignored. */
   initialize(): void {
-    if (this._state === 'ready' || this._state === 'mounting') {
-      return
-    }
+    if (this._state === 'ready' || this._state === 'mounting') return
     if (this._state === 'destroyed' || this._state === 'error') {
       console.warn(`[EarthEngine] Cannot initialize — engine is in "${this._state}" state.`)
       return
@@ -77,8 +77,29 @@ export class EarthEngine {
 
       this._map = map
 
+      // Instantiate and bind CameraController
+      const camera = new CameraController()
+      this._camera = camera
+
       map.once('load', () => {
         if (this._state !== 'mounting') return
+
+        // Bind camera to the now-ready renderer
+        camera.bind(map)
+        camera.syncFromRenderer()
+
+        // Forward renderer camera events → CameraController
+        const syncEvents = ['move', 'zoom', 'rotate', 'pitch'] as const
+        for (const evt of syncEvents) {
+          map.on(evt, () => camera.syncFromRenderer())
+        }
+
+        map.on('movestart', () => camera.setMoving(true))
+        map.on('moveend', () => {
+          camera.syncFromRenderer()
+          camera.setMoving(false)
+        })
+
         this.setState('ready')
       })
 
@@ -94,7 +115,26 @@ export class EarthEngine {
     }
   }
 
-  /** Forward resize to the MapLibre renderer. */
+  // ─────────────────────────────────────────────
+  // Public Camera API — React calls these only
+  // ─────────────────────────────────────────────
+
+  flyTo(options: FlyToOptions): void {
+    this._camera?.flyTo(options)
+  }
+
+  jumpTo(options: JumpToOptions): void {
+    this._camera?.jumpTo(options)
+  }
+
+  fitBounds(bounds: CameraBounds, options?: FitBoundsOptions): void {
+    this._camera?.fitBounds(bounds, options)
+  }
+
+  // ─────────────────────────────────────────────
+  // Resize & Destroy
+  // ─────────────────────────────────────────────
+
   resize(width: number, height: number): void {
     if (!this._map) return
     void width
@@ -102,9 +142,11 @@ export class EarthEngine {
     this._map.resize()
   }
 
-  /** Tear down the engine and release all WebGL resources. */
   destroy(): void {
     if (this._state === 'destroyed') return
+
+    this._camera?.unbind()
+    this._camera = null
 
     if (this._map) {
       try {
@@ -115,7 +157,6 @@ export class EarthEngine {
       this._map = null
     }
 
-    this._deck = null
     this.detach()
     this.setState('destroyed')
     EarthEngine.instance = null
