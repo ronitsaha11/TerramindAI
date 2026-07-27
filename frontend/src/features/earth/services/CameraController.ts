@@ -134,6 +134,22 @@ export class CameraController {
     this._map.zoomIn()
   }
 
+  /** Update map padding to accommodate workspace UI overlays. */
+  syncPadding(padding: { top: number; bottom: number; left: number; right: number }): void {
+    if (!this._map) return
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    
+    this._isSyncing = true
+    try {
+      this._map.easeTo({
+        padding,
+        duration: prefersReducedMotion ? 0 : 300,
+      })
+    } finally {
+      this._isSyncing = false
+    }
+  }
+
   /** Zoom out by one level. */
   zoomOut(): void {
     if (!this._map) return

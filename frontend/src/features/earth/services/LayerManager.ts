@@ -188,10 +188,15 @@ export class LayerManager {
   // ─────────────────────────────────────────────
 
   static buildDemoLayer(id: LayerId, opacity: number): Layer {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     return new ScatterplotLayer<DemoPoint>({
       id,
       data: DEMO_POINTS,
       opacity,
+      transitions: prefersReducedMotion ? undefined : {
+        opacity: 300,
+        getFillColor: 300,
+      },
       getPosition: (d: DemoPoint) => d.position,
       getRadius: (d: DemoPoint) => d.radius,
       getFillColor: (d: DemoPoint) => d.color,

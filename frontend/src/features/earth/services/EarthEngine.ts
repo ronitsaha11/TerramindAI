@@ -2,6 +2,7 @@ import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
 import { useCursorStore } from '../stores/useCursorStore'
 import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
+import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
@@ -24,6 +25,7 @@ export class EarthEngine {
   private _deckOverlayManager: DeckOverlayManager | null = null
   private _layerManager: LayerManager | null = null
   private _fpsTracker: FPSTracker | null = null
+  private _unsubWorkspace: (() => void) | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -128,6 +130,26 @@ export class EarthEngine {
         })
         fpsTracker.start()
 
+        // ─── Workspace Padding ───────────────────────
+        const updatePadding = () => {
+          const { leftSidebarOpen, rightSidebarOpen } = useWorkspaceStore.getState()
+          camera.syncPadding({
+            top: 48,
+            bottom: 28,
+            left: leftSidebarOpen ? 256 : 48,
+            right: rightSidebarOpen ? 256 : 48,
+          })
+        }
+        updatePadding()
+        this._unsubWorkspace = useWorkspaceStore.subscribe(
+          (state, prevState) => {
+            if (state.leftSidebarOpen !== prevState.leftSidebarOpen ||
+                state.rightSidebarOpen !== prevState.rightSidebarOpen) {
+              updatePadding()
+            }
+          }
+        )
+
         // ─── Deck.gl & Layer Manager ─────────────────
         const deckManager = new DeckOverlayManager()
         deckManager.initialize(map)
@@ -202,6 +224,11 @@ export class EarthEngine {
 
   destroy(): void {
     if (this._state === 'destroyed') return
+
+    if (this._unsubWorkspace) {
+      this._unsubWorkspace()
+      this._unsubWorkspace = null
+    }
 
     this._fpsTracker?.stop()
     this._fpsTracker = null
