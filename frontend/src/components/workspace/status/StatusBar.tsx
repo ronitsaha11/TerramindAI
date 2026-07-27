@@ -19,6 +19,7 @@ export function StatusBar() {
           label={item.label}
           value={item.formatter(state)}
           icon={item.icon}
+          colorClass={item.colorClass?.(state)}
         />
       ))
   }

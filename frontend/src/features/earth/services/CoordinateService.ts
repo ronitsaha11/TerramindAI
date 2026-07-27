@@ -15,6 +15,10 @@ export class CoordinateService {
   // It receives the renderer reference only for project/unproject operations.
   // It never subscribes to renderer events.
 
+  private _rafId: number | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _lastEvent: any = null
+
   /** Project a geographic coordinate to a screen pixel using the renderer. */
   project(map: MapLibreMap, coord: Coordinate): ScreenCoordinate | null {
     if (!isValidCoordinate(coord)) return null
@@ -88,5 +92,40 @@ export class CoordinateService {
       east: bounds.getEast(),
       north: bounds.getNorth(),
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // RAF Throttling
+  // ─────────────────────────────────────────────
+
+  /** 
+   * Throttle mouse movement updates using requestAnimationFrame.
+   * Ensures the cursor store updates no faster than the display refresh rate,
+   * while always processing the most recent event.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  throttleCursorUpdate(map: MapLibreMap, event: any, updateFn: (coord: Coordinate & ScreenCoordinate) => void): void {
+    this._lastEvent = event
+    if (this._rafId === null) {
+      this._rafId = requestAnimationFrame(() => {
+        this._rafId = null
+        if (this._lastEvent) {
+          const point = this._lastEvent.point
+          const coord = this.unproject(map, { x: point.x, y: point.y })
+          if (coord) {
+            updateFn({ ...coord, x: point.x, y: point.y })
+          }
+        }
+      })
+    }
+  }
+
+  /** Cancel any pending RAF cursor updates. */
+  clearThrottle(): void {
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId)
+      this._rafId = null
+    }
+    this._lastEvent = null
   }
 }

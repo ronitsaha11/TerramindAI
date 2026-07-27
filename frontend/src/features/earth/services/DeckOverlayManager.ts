@@ -13,7 +13,21 @@ export class DeckOverlayManager {
   /** Initialize and attach the shared-context MapboxOverlay. */
   initialize(map: MapLibreMap): void {
     if (this._overlay) return
-    this._overlay = new MapboxOverlay({ interleaved: true, layers: [] })
+    this._overlay = new MapboxOverlay({
+      interleaved: true,
+      parameters: {
+        depthTest: true,
+        blend: true,
+        blendFunc: [
+          WebGLRenderingContext.SRC_ALPHA,
+          WebGLRenderingContext.ONE_MINUS_SRC_ALPHA,
+          WebGLRenderingContext.ONE,
+          WebGLRenderingContext.ONE_MINUS_SRC_ALPHA
+        ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
+      layers: [],
+    })
     map.addControl(this._overlay as unknown as IControl)
   }
 

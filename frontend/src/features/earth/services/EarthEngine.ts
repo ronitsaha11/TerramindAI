@@ -1,11 +1,13 @@
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
 import { useCursorStore } from '../stores/useCursorStore'
+import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
 import { LayerManager } from './LayerManager'
+import { FPSTracker } from './FPSTracker'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
@@ -18,8 +20,10 @@ export class EarthEngine {
   private _map: MapLibreMap | null = null
   private _camera: CameraController | null = null
   private _projection: ProjectionService | null = null
+  private _coordinates: CoordinateService | null = null
   private _deckOverlayManager: DeckOverlayManager | null = null
   private _layerManager: LayerManager | null = null
+  private _fpsTracker: FPSTracker | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -82,9 +86,12 @@ export class EarthEngine {
       const camera = new CameraController()
       const coordinates = new CoordinateService()
       const projection = new ProjectionService()
+      const fpsTracker = new FPSTracker()
 
       this._camera = camera
       this._projection = projection
+      this._coordinates = coordinates
+      this._fpsTracker = fpsTracker
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
@@ -108,10 +115,18 @@ export class EarthEngine {
         // ─── Cursor events ───────────────────────────
         const { setCursor, clearCursor } = useCursorStore.getState()
         map.on('mousemove', (e) => {
-          const coord = coordinates.unproject(map, { x: e.point.x, y: e.point.y })
-          if (coord) setCursor({ ...coord, x: e.point.x, y: e.point.y })
+          coordinates.throttleCursorUpdate(map, e, setCursor)
         })
-        map.on('mouseout', () => clearCursor())
+        map.on('mouseout', () => {
+          coordinates.clearThrottle()
+          clearCursor()
+        })
+
+        // ─── FPS Tracking ────────────────────────────
+        fpsTracker.subscribe((fps) => {
+          useWorkspaceStatusStore.getState().setFPS(fps)
+        })
+        fpsTracker.start()
 
         // ─── Deck.gl & Layer Manager ─────────────────
         const deckManager = new DeckOverlayManager()
@@ -188,11 +203,17 @@ export class EarthEngine {
   destroy(): void {
     if (this._state === 'destroyed') return
 
+    this._fpsTracker?.stop()
+    this._fpsTracker = null
+
     this._camera?.unbind()
     this._camera = null
 
     this._projection?.unbind()
     this._projection = null
+
+    this._coordinates?.clearThrottle()
+    this._coordinates = null
 
     this._layerManager?.destroy()
     this._layerManager = null

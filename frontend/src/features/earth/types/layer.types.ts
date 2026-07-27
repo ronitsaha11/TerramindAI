@@ -1,3 +1,5 @@
+import { type Layer } from '@deck.gl/core'
+
 /** Unique string identifier for a layer. */
 export type LayerId = string
 
@@ -60,6 +62,10 @@ export interface LayerRuntime {
   selected: boolean
   /** Render order index — lower numbers render first (beneath). */
   order: number
+  /** Cached Deck.gl layer instance. */
+  deckLayer?: Layer
+  /** Flag indicating the layer needs to be rebuilt. */
+  dirty?: boolean
 }
 
 /** Minimal read-only snapshot exposed to React via useLayerStore. */

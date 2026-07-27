@@ -37,6 +37,7 @@ export class LayerManager {
   private _registry = new Map<LayerId, LayerRuntime>()
   private _deckOverlay: DeckOverlayManager | null = null
   private _initialized = false
+  private _renderDirty = false
 
   // ─────────────────────────────────────────────
   // Lifecycle
@@ -69,8 +70,10 @@ export class LayerManager {
       opacity: config.style.opacity,
       selected: false,
       order: this._registry.size,
+      dirty: true,
     }
     this._registry.set(config.id, runtime)
+    this._renderDirty = true
     this.syncRenderer()
     this.syncStore()
   }
@@ -78,6 +81,7 @@ export class LayerManager {
   /** Unregister and remove a layer from the renderer. */
   removeLayer(id: LayerId): void {
     this._registry.delete(id)
+    this._renderDirty = true
     this._reorderAfterRemoval()
     this.syncRenderer()
     this.syncStore()
@@ -93,7 +97,9 @@ export class LayerManager {
         ...runtime.definition,
         config: { ...runtime.definition.config, ...config },
       },
+      dirty: true,
     })
+    this._renderDirty = true
     this.syncRenderer()
     this.syncStore()
   }
@@ -102,7 +108,9 @@ export class LayerManager {
   setVisibility(id: LayerId, visible: boolean): void {
     const runtime = this._registry.get(id)
     if (!runtime) return
+    if (runtime.visible === visible) return
     this._registry.set(id, { ...runtime, visible })
+    this._renderDirty = true
     this.syncRenderer()
     this.syncStore()
   }
@@ -112,7 +120,9 @@ export class LayerManager {
     const runtime = this._registry.get(id)
     if (!runtime) return
     const clamped = Math.max(0, Math.min(1, opacity))
-    this._registry.set(id, { ...runtime, opacity: clamped })
+    if (runtime.opacity === clamped) return
+    this._registry.set(id, { ...runtime, opacity: clamped, dirty: true })
+    this._renderDirty = true
     this.syncRenderer()
     this.syncStore()
   }
@@ -127,8 +137,9 @@ export class LayerManager {
     ids.splice(toIndex, 0, id)
     ids.forEach((layerId, i) => {
       const rt = this._registry.get(layerId)
-      if (rt) this._registry.set(layerId, { ...rt, order: i })
+      if (rt && rt.order !== i) this._registry.set(layerId, { ...rt, order: i })
     })
+    this._renderDirty = true
     this.syncRenderer()
     this.syncStore()
   }
@@ -148,9 +159,10 @@ export class LayerManager {
 
   /** Push visible layers to the Deck.gl rendering backend in render order. */
   syncRenderer(): void {
-    if (!this._deckOverlay) return
+    if (!this._deckOverlay || !this._renderDirty) return
     const layers = this._buildDeckLayers()
     this._deckOverlay.renderLayers(layers)
+    this._renderDirty = false
   }
 
   /** Push a read-only snapshot of layer state to useLayerStore. */
@@ -204,9 +216,13 @@ export class LayerManager {
     return this._getOrderedIds()
       .map((id) => this._registry.get(id)!)
       .filter((rt) => rt.visible)
-      .map((rt) =>
-        LayerManager.buildDemoLayer(rt.definition.config.id, rt.opacity)
-      )
+      .map((rt) => {
+        if (!rt.deckLayer || rt.dirty) {
+          rt.deckLayer = LayerManager.buildDemoLayer(rt.definition.config.id, rt.opacity)
+          rt.dirty = false
+        }
+        return rt.deckLayer as Layer
+      })
   }
 
   private _reorderAfterRemoval(): void {

@@ -22,6 +22,7 @@ export type RegistryStatusItem = {
   icon: ComponentType<any>
   position: StatusPosition
   formatter: (state: WorkspaceStatusState) => string
+  colorClass?: (state: WorkspaceStatusState) => string
   visible: (state: WorkspaceStatusState) => boolean
 }
 
@@ -87,6 +88,12 @@ export const statusRegistry: RegistryStatusItem[] = [
     icon: Activity,
     position: 'right',
     formatter: (state) => state.fps !== null ? state.fps.toFixed(0) : '--',
+    colorClass: (state) => {
+      if (state.fps === null) return 'text-zinc-400'
+      if (state.fps >= 50) return 'text-green-500'
+      if (state.fps >= 30) return 'text-yellow-500'
+      return 'text-red-500'
+    },
     visible: () => true,
   },
   {
