@@ -2,6 +2,7 @@ import { TopNav } from '@/components/hud/TopNav'
 import { LeftSidebar } from '@/components/workspace/LeftSidebar'
 import { RightSidebar } from '@/components/workspace/RightSidebar'
 import { MapViewport } from '@/components/workspace/MapViewport'
+import { WorkspaceOverlay } from '@/components/workspace/WorkspaceOverlay'
 
 export function WorkspaceLayout() {
   return (
@@ -9,7 +10,12 @@ export function WorkspaceLayout() {
       <TopNav />
       <div className="flex-1 flex overflow-hidden">
         <LeftSidebar />
-        <MapViewport />
+        
+        <div className="flex-1 relative overflow-hidden flex flex-col">
+          <MapViewport />
+          <WorkspaceOverlay />
+        </div>
+        
         <RightSidebar />
       </div>
     </div>
