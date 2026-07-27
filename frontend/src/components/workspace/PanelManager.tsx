@@ -9,6 +9,7 @@ import {
   SettingsPanel
 } from './panels'
 import { type ComponentType } from 'react'
+import { AnimatePresence } from 'framer-motion'
 
 const panelRegistry: Record<string, ComponentType> = {
   layers: LayersPanel,
@@ -25,11 +26,14 @@ export function PanelManager() {
 
   return (
     <div className="absolute inset-0 p-4 flex gap-4 flex-wrap items-start justify-start pointer-events-none z-10">
-      {activePanels.map(id => {
-        const PanelComponent = panelRegistry[id]
-        if (!PanelComponent) return null
-        return <PanelComponent key={id} />
-      })}
+      <AnimatePresence mode="popLayout">
+        {activePanels.map(id => {
+          const PanelComponent = panelRegistry[id]
+          if (!PanelComponent) return null
+          return <PanelComponent key={id} />
+        })}
+      </AnimatePresence>
     </div>
   )
 }
+
