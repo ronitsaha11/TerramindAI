@@ -4,6 +4,7 @@ import { useCursorStore } from '../stores/useCursorStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
+import { DeckOverlayManager } from './DeckOverlayManager'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
@@ -16,7 +17,8 @@ export class EarthEngine {
   private _map: MapLibreMap | null = null
   private _camera: CameraController | null = null
   private _projection: ProjectionService | null = null
-  // Reserved for future Deck.gl integration — placeholder until Phase 11.4
+  private _deckOverlayManager: DeckOverlayManager | null = null
+  // Reserved for future additional renderers — placeholder
   private declare _deck: unknown
 
   static getInstance(): EarthEngine {
@@ -118,6 +120,18 @@ export class EarthEngine {
           clearCursor()
         })
 
+        // ─── Deck.gl overlay pipeline ──────────────
+        const deckManager = new DeckOverlayManager()
+        this._deckOverlayManager = deckManager
+        deckManager.initialize(map)
+
+        // Register the demonstration ScatterplotLayer through the registry
+        deckManager.addOverlay(
+          'demo-cities',
+          DeckOverlayManager.buildDemoLayer(),
+          { category: 'scatter', label: 'Demo Cities' },
+        )
+
         this.setState('ready')
       })
 
@@ -149,6 +163,11 @@ export class EarthEngine {
     this._camera?.fitBounds(bounds, options)
   }
 
+  /** Access the overlay manager. React components must never access Deck.gl directly. */
+  getOverlayManager(): DeckOverlayManager | null {
+    return this._deckOverlayManager
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -168,6 +187,9 @@ export class EarthEngine {
 
     this._projection?.unbind()
     this._projection = null
+
+    this._deckOverlayManager?.destroy()
+    this._deckOverlayManager = null
 
     useCursorStore.getState().clearCursor()
 
