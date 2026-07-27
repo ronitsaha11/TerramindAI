@@ -17,6 +17,7 @@ from src.analytics.indices import default_registry as default_index_registry
 from src.analytics.providers.base import RasterProvider
 from src.analytics.providers.cog_provider import COGRasterProvider
 from src.analytics.statistics import default_engine as default_statistics_engine
+from src.async_processing.service import JobService
 from src.db.session import AsyncSessionLocal
 from src.geospatial.analytics import SpatialAnalyticsEngine
 from src.geospatial.geojson_exporter import GeoJSONExporter
@@ -164,4 +165,18 @@ def get_geospatial_service(
         geometry_processor=geometry_processor,
         analytics_engine=analytics_engine,
         geojson_exporter=geojson_exporter,
+    )
+
+
+def get_job_service() -> "JobService":
+    """Dependency provider for JobService."""
+    from src.async_processing.celery_app import app as celery_app
+    from src.async_processing.manager import default_task_manager
+    from src.async_processing.registry import default_registry
+    from src.async_processing.service import JobService
+
+    return JobService(
+        task_manager=default_task_manager,
+        task_registry=default_registry,
+        celery_app=celery_app,
     )
