@@ -32,6 +32,10 @@ class JobStoreProtocol(Protocol):
         """Remove a job record from the store."""
         ...
 
+    def list_jobs(self) -> list[JobRecord]:
+        """Retrieve all job records."""
+        ...
+
 
 class InMemoryJobStore:
     """
@@ -57,3 +61,6 @@ class InMemoryJobStore:
     def delete_job(self, job_id: UUID) -> None:
         if job_id in self._store:
             del self._store[job_id]
+
+    def list_jobs(self) -> list[JobRecord]:
+        return list(self._store.values())

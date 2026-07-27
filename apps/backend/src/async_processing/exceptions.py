@@ -36,3 +36,37 @@ class TaskExecutionError(AsyncProcessingError):
 
     def __init__(self, detail: str = "Task execution failed") -> None:
         super().__init__(detail=detail, status_code=500)
+
+
+class JobSubmissionError(AsyncProcessingError):
+    """Raised when a job fails to submit properly."""
+
+    def __init__(self, detail: str = "Job submission failed") -> None:
+        super().__init__(detail=detail, status_code=400)
+
+
+class JobCancellationError(AsyncProcessingError):
+    """Raised when a job cancellation request is invalid."""
+
+    def __init__(self, detail: str = "Job cancellation failed") -> None:
+        super().__init__(detail=detail, status_code=400)
+
+
+class JobRetryError(AsyncProcessingError):
+    """Raised when a job retry request is invalid."""
+
+    def __init__(self, detail: str = "Job retry failed") -> None:
+        super().__init__(detail=detail, status_code=400)
+
+
+class UnknownJobError(JobNotFoundError):
+    """Raised when querying a job that does not exist (alias of JobNotFoundError)."""
+
+    pass
+
+
+class InvalidJobOperationError(AsyncProcessingError):
+    """Raised when attempting an operation not supported by the job's current state."""
+
+    def __init__(self, detail: str = "Invalid job operation") -> None:
+        super().__init__(detail=detail, status_code=400)

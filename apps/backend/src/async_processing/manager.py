@@ -66,6 +66,14 @@ class TaskManager:
         self._store.create_job(job)
         return job
 
+    def get_job(self, job_id: uuid.UUID) -> JobRecord:
+        """Retrieve a job record by its ID."""
+        return self._store.get_job(job_id)
+
+    def list_jobs(self) -> list[JobRecord]:
+        """Retrieve all job records."""
+        return self._store.list_jobs()
+
     def acknowledge_receipt(self, job_id: uuid.UUID) -> JobRecord:
         """Mark that the job was received by the broker/worker."""
         job = self._store.get_job(job_id)
