@@ -24,3 +24,17 @@ class TransformValidationError(GeospatialProcessingError):
 
     def __init__(self, detail: str = "Invalid affine transform") -> None:
         super().__init__(detail=detail, status_code=400)
+
+
+class GeometryProcessingError(GeospatialProcessingError):
+    """Raised when geometry processing fails."""
+
+    def __init__(self, detail: str = "Geometry processing failed") -> None:
+        super().__init__(detail=detail, status_code=500)
+
+
+class GeometryValidationError(GeometryProcessingError):
+    """Raised when an invalid geometry is encountered or a validation fails."""
+
+    def __init__(self, detail: str = "Geometry validation failed") -> None:
+        super().__init__(detail=detail)

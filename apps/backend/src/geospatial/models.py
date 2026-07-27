@@ -44,3 +44,39 @@ class PolygonizationResult(BaseModel):
     processing_duration_ms: float = Field(
         ..., description="Duration of the polygonization process in milliseconds"
     )
+
+
+class GeometryProcessingRequest(BaseModel):
+    """Request payload for processing and cleaning polygonized geometries."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    polygonization_result: PolygonizationResult = Field(
+        ..., description="The result from the RasterPolygonizer to be processed"
+    )
+    simplify_tolerance: float | None = Field(
+        default=None, description="Tolerance for geometry simplification, if any"
+    )
+    min_polygon_area: float | None = Field(
+        default=None, description="Minimum area for a polygon to be retained"
+    )
+    preserve_topology: bool = Field(
+        default=True, description="Whether to preserve topology during simplification"
+    )
+
+
+class GeometryProcessingResult(BaseModel):
+    """Result of processing and cleaning geometries."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    features: list[PolygonFeature] = Field(
+        ..., description="List of processed polygon features"
+    )
+    crs: str = Field(..., description="Coordinate Reference System (e.g., EPSG:4326)")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional processing metadata"
+    )
+    processing_duration_ms: float = Field(
+        ..., description="Duration of the geometry processing in milliseconds"
+    )
