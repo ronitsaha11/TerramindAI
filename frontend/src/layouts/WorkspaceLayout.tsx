@@ -4,6 +4,7 @@ import { RightSidebar } from '@/components/workspace/RightSidebar'
 import { MapViewport } from '@/components/workspace/MapViewport'
 import { WorkspaceOverlay } from '@/components/workspace/WorkspaceOverlay'
 import { CommandPalette } from '@/components/command/CommandPalette'
+import { StatusBar } from '@/components/workspace/status/StatusBar'
 
 export function WorkspaceLayout() {
   return (
@@ -19,6 +20,7 @@ export function WorkspaceLayout() {
         
         <RightSidebar />
       </div>
+      <StatusBar />
       <CommandPalette />
     </div>
   )
