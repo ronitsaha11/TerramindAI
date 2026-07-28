@@ -27,6 +27,7 @@ import { OceanSystem } from '../../ocean'
 import { AtmosphereEngine } from '../../environment'
 import { CloudEngine } from '../../clouds'
 import { NightLightsEngine } from '../../nightlights'
+import { SpaceEngine } from '../../space'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -62,6 +63,7 @@ export class EarthEngine {
   private _atmosphereEngine: AtmosphereEngine | null = null
   private _cloudEngine: CloudEngine | null = null
   private _nightLightsEngine: NightLightsEngine | null = null
+  private _spaceEngine: SpaceEngine | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -145,6 +147,9 @@ export class EarthEngine {
       const nightLightsEngine = new NightLightsEngine(atmosphereEngine)
       nightLightsEngine.initialize()
 
+      const spaceEngine = new SpaceEngine(earthEphemeris)
+      spaceEngine.initialize()
+
       this._fpsTracker = fpsTracker
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
@@ -160,6 +165,7 @@ export class EarthEngine {
       this._atmosphereEngine = atmosphereEngine
       this._cloudEngine = cloudEngine
       this._nightLightsEngine = nightLightsEngine
+      this._spaceEngine = spaceEngine
 
       // Start the simulation loop
       this._lastFrameTime = performance.now()
@@ -170,6 +176,7 @@ export class EarthEngine {
           const realWorldDeltaMs = currentTime - this._lastFrameTime;
           this._simulationClock?.tick(realWorldDeltaMs);
           this._cloudEngine?.update();
+          this._spaceEngine?.update();
         }
         this._lastFrameTime = currentTime;
         
@@ -385,6 +392,10 @@ export class EarthEngine {
     return this._nightLightsEngine
   }
 
+  getSpaceEngine(): SpaceEngine | null {
+    return this._spaceEngine
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -446,6 +457,9 @@ export class EarthEngine {
 
     this._nightLightsEngine?.destroy()
     this._nightLightsEngine = null
+
+    this._spaceEngine?.destroy()
+    this._spaceEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null

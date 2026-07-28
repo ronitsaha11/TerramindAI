@@ -8,10 +8,12 @@ import type { OceanSystem } from '../../ocean/OceanSystem';
 import type { AtmosphereEngine } from '../../environment/AtmosphereEngine';
 import type { CloudEngine } from '../../clouds/CloudEngine';
 import type { NightLightsEngine } from '../../nightlights/NightLightsEngine';
+import type { SpaceEngine } from '../../space/SpaceEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
 import { DeckGLCloudBridge } from '../bridges/DeckGLCloudBridge';
 import { DeckGLNightLightsBridge } from '../bridges/DeckGLNightLightsBridge';
+import { DeckGLSpaceBridge } from '../bridges/DeckGLSpaceBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,10 +27,12 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private atmosphereEngine: AtmosphereEngine;
   private cloudEngine: CloudEngine;
   private nightLightsEngine: NightLightsEngine;
+  private spaceEngine: SpaceEngine;
   private terrainBridge: DeckGLTerrainBridge;
   private atmosphereBridge: DeckGLAtmosphereBridge;
   private cloudBridge: DeckGLCloudBridge;
   private nightLightsBridge: DeckGLNightLightsBridge;
+  private spaceBridge: DeckGLSpaceBridge;
 
   constructor(
     container: HTMLDivElement,
@@ -38,7 +42,8 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     oceanSystem: OceanSystem,
     atmosphereEngine: AtmosphereEngine,
     cloudEngine: CloudEngine,
-    nightLightsEngine: NightLightsEngine
+    nightLightsEngine: NightLightsEngine,
+    spaceEngine: SpaceEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
@@ -48,10 +53,12 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     this.atmosphereEngine = atmosphereEngine;
     this.cloudEngine = cloudEngine;
     this.nightLightsEngine = nightLightsEngine;
+    this.spaceEngine = spaceEngine;
     this.nightLightsBridge = new DeckGLNightLightsBridge(this.nightLightsEngine);
     this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine, this.nightLightsBridge);
     this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
     this.cloudBridge = new DeckGLCloudBridge(this.cloudEngine);
+    this.spaceBridge = new DeckGLSpaceBridge(this.spaceEngine);
   }
 
   public async initialize(): Promise<boolean> {
@@ -108,6 +115,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       layers: [
+        ...this.spaceBridge.createLayers(),
         this.terrainBridge.createTerrainLayer(),
         this.cloudBridge.createCloudLayer()
       ].filter(Boolean)
