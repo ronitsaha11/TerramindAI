@@ -33,3 +33,9 @@ export {
 // Registry
 export type { IDatasetRegistry, RegistryChangeListener } from './registry/dataset-registry.interface';
 export { DatasetRegistry } from './registry/dataset-registry';
+
+// Pipeline Implementations
+export { GeoJsonValidator } from './validation/geojson.validator';
+export { GeoJsonMetadataProvider } from './metadata/geojson-metadata-provider';
+export { GeoJsonImporter } from './importers/geojson.importer';
+
