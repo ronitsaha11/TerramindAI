@@ -23,6 +23,7 @@ import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 import { SimulationClock } from '../../../core/simulation'
 import { SimulationBridge } from '../../simulation/stores/simulation-bridge'
+import { EarthReferenceFrame, EarthEphemeris } from '../../../core/planet'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -46,6 +47,8 @@ export class EarthEngine {
   private _environmentController: EnvironmentController | null = null
   private _simulationClock: SimulationClock | null = null
   private _simulationBridge: SimulationBridge | null = null
+  private _earthReferenceFrame: EarthReferenceFrame | null = null
+  private _earthEphemeris: EarthEphemeris | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -121,6 +124,9 @@ export class EarthEngine {
       const simulationBridge = new SimulationBridge(simulationClock)
       simulationBridge.initialize()
 
+      const earthReferenceFrame = new EarthReferenceFrame()
+      const earthEphemeris = new EarthEphemeris(simulationClock)
+
       this._camera = camera
       this._projection = projection
       this._coordinates = coordinates
@@ -128,6 +134,8 @@ export class EarthEngine {
       this._environmentController = environmentController
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
+      this._earthReferenceFrame = earthReferenceFrame
+      this._earthEphemeris = earthEphemeris
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
@@ -297,6 +305,14 @@ export class EarthEngine {
     return this._datasetRegistry
   }
 
+  getEarthReferenceFrame(): EarthReferenceFrame | null {
+    return this._earthReferenceFrame
+  }
+
+  getEarthEphemeris(): EarthEphemeris | null {
+    return this._earthEphemeris
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -329,6 +345,10 @@ export class EarthEngine {
     this._simulationBridge?.destroy()
     this._simulationBridge = null
     this._simulationClock = null
+
+    this._earthEphemeris?.destroy()
+    this._earthEphemeris = null
+    this._earthReferenceFrame = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null
