@@ -24,6 +24,7 @@ import { RenderingBridge } from '../../rendering/stores/rendering-bridge'
 import { StreamingEngine } from '../../streaming'
 import { TerrainElevationEngine } from '../../terrain'
 import { OceanSystem } from '../../ocean'
+import { AtmosphereEngine } from '../../environment'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -56,6 +57,7 @@ export class EarthEngine {
   private _streamingEngine: StreamingEngine | null = null
   private _terrainEngine: TerrainElevationEngine | null = null
   private _oceanSystem: OceanSystem | null = null
+  private _atmosphereEngine: AtmosphereEngine | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -130,6 +132,9 @@ export class EarthEngine {
 
       const oceanSystem = new OceanSystem()
 
+      const atmosphereEngine = new AtmosphereEngine()
+      atmosphereEngine.initialize()
+
       this._fpsTracker = fpsTracker
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
@@ -142,6 +147,7 @@ export class EarthEngine {
       this._streamingEngine = streamingEngine
       this._terrainEngine = terrainEngine
       this._oceanSystem = oceanSystem
+      this._atmosphereEngine = atmosphereEngine
 
       // Start the simulation loop
       this._lastFrameTime = performance.now()
@@ -354,6 +360,10 @@ export class EarthEngine {
     return this._oceanSystem
   }
 
+  getAtmosphereEngine(): AtmosphereEngine | null {
+    return this._atmosphereEngine
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -407,6 +417,9 @@ export class EarthEngine {
     this._terrainEngine = null
 
     this._oceanSystem = null
+
+    this._atmosphereEngine?.destroy()
+    this._atmosphereEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null

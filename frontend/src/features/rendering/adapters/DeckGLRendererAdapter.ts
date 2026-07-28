@@ -5,7 +5,9 @@ import type { CameraEngine } from '../../../core/camera/CameraEngine';
 import type { StreamingEngine } from '../../streaming/StreamingEngine';
 import type { TerrainElevationEngine } from '../../terrain/TerrainElevationEngine';
 import type { OceanSystem } from '../../ocean/OceanSystem';
+import type { AtmosphereEngine } from '../../environment/AtmosphereEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
+import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,21 +18,26 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private streamingEngine: StreamingEngine;
   private terrainEngine: TerrainElevationEngine;
   private oceanSystem: OceanSystem;
+  private atmosphereEngine: AtmosphereEngine;
   private terrainBridge: DeckGLTerrainBridge;
+  private atmosphereBridge: DeckGLAtmosphereBridge;
 
   constructor(
     container: HTMLDivElement,
     cameraEngine: CameraEngine,
     streamingEngine: StreamingEngine,
     terrainEngine: TerrainElevationEngine,
-    oceanSystem: OceanSystem
+    oceanSystem: OceanSystem,
+    atmosphereEngine: AtmosphereEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
     this.streamingEngine = streamingEngine;
     this.terrainEngine = terrainEngine;
     this.oceanSystem = oceanSystem;
+    this.atmosphereEngine = atmosphereEngine;
     this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine);
+    this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
   }
 
   public async initialize(): Promise<boolean> {
@@ -48,6 +55,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
         views: [new GlobeView({ id: 'globe', controller: true })],
+        effects: [this.atmosphereBridge.createLightingEffect()],
         onViewStateChange: ({ viewState }) => {
           const ms = viewState as MapViewState;
           // Route user interaction directly back to the authoritative domain
