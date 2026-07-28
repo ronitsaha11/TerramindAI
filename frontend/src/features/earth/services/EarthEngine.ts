@@ -15,6 +15,9 @@ import { DeckInteractionAdapter } from '../adapters/deck-interaction-adapter'
 import { InteractionBridge } from '../stores/interaction-bridge'
 import { StyleEvaluator } from '../../../core/styles/style-evaluator'
 import { DatasetLayerFactory } from '../../../core/datasets/rendering/dataset-layer.factory'
+import { SpatialEngine } from '../../../core/spatial/spatial.engine'
+import { DatasetRegistry } from '../../../core/datasets/registry/dataset-registry'
+import { ViewportQueryController } from './viewport-query-controller'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
@@ -33,6 +36,8 @@ export class EarthEngine {
   private _layerManager: LayerManager | null = null
   private _interactionBridge: InteractionBridge | null = null
   private _datasetLayerFactory: DatasetLayerFactory | null = null
+  private _viewportQueryController: ViewportQueryController | null = null
+  private _datasetRegistry: DatasetRegistry | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
   private _unsubWorkspace: (() => void) | null = null
@@ -185,6 +190,14 @@ export class EarthEngine {
         const datasetLayerFactory = new DatasetLayerFactory(styleEvaluator)
         this._datasetLayerFactory = datasetLayerFactory
 
+        const datasetRegistry = new DatasetRegistry()
+        this._datasetRegistry = datasetRegistry
+
+        const spatialEngine = new SpatialEngine()
+        const viewportQueryController = new ViewportQueryController(spatialEngine, datasetRegistry)
+        viewportQueryController.bind(map)
+        this._viewportQueryController = viewportQueryController
+
         // ─── Environment (Terrain/Sky) ────────────────
         environmentController.initialize(map)
         
@@ -241,6 +254,14 @@ export class EarthEngine {
 
   getDatasetLayerFactory(): DatasetLayerFactory | null {
     return this._datasetLayerFactory
+  }
+
+  getViewportQueryController(): ViewportQueryController | null {
+    return this._viewportQueryController
+  }
+
+  getDatasetRegistry(): DatasetRegistry | null {
+    return this._datasetRegistry
   }
 
   // ─────────────────────────────────────────────
