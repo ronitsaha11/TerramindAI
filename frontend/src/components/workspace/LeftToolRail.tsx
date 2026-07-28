@@ -1,5 +1,6 @@
 import { 
   Layers, 
+  Database,
   CloudRain, 
   Cpu, 
   LineChart, 
@@ -17,6 +18,7 @@ export function LeftToolRail() {
 
   const tools = [
     { id: 'layers', icon: Layers, label: 'Layers' },
+    { id: 'datasets', icon: Database, label: 'Datasets' },
     { id: 'weather', icon: CloudRain, label: 'Weather' },
     { id: 'ai', icon: Cpu, label: 'AI' },
     { id: 'analytics', icon: LineChart, label: 'Analytics' },

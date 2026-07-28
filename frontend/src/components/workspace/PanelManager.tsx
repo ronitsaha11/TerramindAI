@@ -1,6 +1,7 @@
 import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
 import { 
   LayersPanel, 
+  DatasetsPanel,
   WeatherPanel, 
   AIPanel, 
   AnalyticsPanel, 
@@ -13,6 +14,7 @@ import { AnimatePresence } from 'framer-motion'
 
 const panelRegistry: Record<string, ComponentType> = {
   layers: LayersPanel,
+  datasets: DatasetsPanel,
   weather: WeatherPanel,
   ai: AIPanel,
   analytics: AnalyticsPanel,

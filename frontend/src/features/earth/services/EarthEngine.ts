@@ -18,6 +18,7 @@ import { DatasetLayerFactory } from '../../../core/datasets/rendering/dataset-la
 import { SpatialEngine } from '../../../core/spatial/spatial.engine'
 import { DatasetRegistry } from '../../../core/datasets/registry/dataset-registry'
 import { ViewportQueryController } from './viewport-query-controller'
+import { SpatialBridge } from '../../spatial/stores/spatial-bridge'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
@@ -37,6 +38,7 @@ export class EarthEngine {
   private _interactionBridge: InteractionBridge | null = null
   private _datasetLayerFactory: DatasetLayerFactory | null = null
   private _viewportQueryController: ViewportQueryController | null = null
+  private _spatialBridge: SpatialBridge | null = null
   private _datasetRegistry: DatasetRegistry | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
@@ -198,6 +200,10 @@ export class EarthEngine {
         viewportQueryController.bind(map)
         this._viewportQueryController = viewportQueryController
 
+        const spatialBridge = new SpatialBridge(viewportQueryController)
+        spatialBridge.initialize()
+        this._spatialBridge = spatialBridge
+
         // ─── Environment (Terrain/Sky) ────────────────
         environmentController.initialize(map)
         
@@ -305,6 +311,9 @@ export class EarthEngine {
 
     this._interactionBridge?.destroy()
     this._interactionBridge = null
+
+    this._spatialBridge?.destroy()
+    this._spatialBridge = null
 
     this._environmentController?.destroy()
     this._environmentController = null

@@ -3,6 +3,7 @@ import { useLayerStore } from '@/features/earth/stores/useLayerStore'
 import { EarthEngine } from '@/features/earth/services/EarthEngine'
 import { Eye, EyeOff, Layers } from 'lucide-react'
 import { FeatureInspector } from '@/features/interactions/components'
+import { DatasetManagerPanel } from '@/features/datasets/components/DatasetManagerPanel'
 
 function LayersPanel() {
   const layers = useLayerStore(state => state.layers)
@@ -92,6 +93,14 @@ function LayersPanel() {
           ))}
         </div>
       )}
+    </WorkspacePanel>
+  )
+}
+
+export function DatasetsPanel() {
+  return (
+    <WorkspacePanel id="datasets" title="Datasets">
+      <DatasetManagerPanel />
     </WorkspacePanel>
   )
 }
