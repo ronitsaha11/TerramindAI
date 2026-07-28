@@ -10,6 +10,7 @@ import type { CloudEngine } from '../../clouds/CloudEngine';
 import type { NightLightsEngine } from '../../nightlights/NightLightsEngine';
 import type { SpaceEngine } from '../../space/SpaceEngine';
 import type { ChoreographyEngine } from '../../choreography/ChoreographyEngine';
+import type { PerformanceEngine } from '../../performance/PerformanceEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
 import { DeckGLCloudBridge } from '../bridges/DeckGLCloudBridge';
@@ -30,6 +31,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private nightLightsEngine: NightLightsEngine;
   private spaceEngine: SpaceEngine;
   private choreographyEngine: ChoreographyEngine;
+  private performanceEngine: PerformanceEngine;
   private terrainBridge: DeckGLTerrainBridge;
   private atmosphereBridge: DeckGLAtmosphereBridge;
   private cloudBridge: DeckGLCloudBridge;
@@ -46,7 +48,8 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     cloudEngine: CloudEngine,
     nightLightsEngine: NightLightsEngine,
     spaceEngine: SpaceEngine,
-    choreographyEngine: ChoreographyEngine
+    choreographyEngine: ChoreographyEngine,
+    performanceEngine: PerformanceEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
@@ -58,6 +61,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     this.nightLightsEngine = nightLightsEngine;
     this.spaceEngine = spaceEngine;
     this.choreographyEngine = choreographyEngine;
+    this.performanceEngine = performanceEngine;
     this.nightLightsBridge = new DeckGLNightLightsBridge(this.nightLightsEngine);
     this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine, this.nightLightsBridge);
     this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
@@ -67,8 +71,15 @@ export class DeckGLRendererAdapter implements RendererAdapter {
 
   public async initialize(): Promise<boolean> {
     try {
+      const profile = this.performanceEngine.getProfile();
       this.deck = new Deck({
         parent: this.container,
+        useDevicePixels: profile.useDevicePixels,
+        parameters: {
+          depthTest: true,
+          clearColor: [0, 0, 0, 1]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
         initialViewState: {
           longitude: 0,
           latitude: 0,
@@ -102,10 +113,17 @@ export class DeckGLRendererAdapter implements RendererAdapter {
           });
         },
         layers: []
-        // parameters: {
-        //   clearColor: [0, 0, 0, 1] // Deep space black background
-        // }
       });
+      
+      // Update device pixels on the fly if profile changes
+      this.performanceEngine.events.onProfileUpdated((newProfile) => {
+        if (this.deck) {
+          this.deck.setProps({
+            useDevicePixels: newProfile.useDevicePixels
+          });
+        }
+      });
+      
       return true;
     } catch (e) {
       console.error('[DeckGLRendererAdapter] Failed to initialize Deck:', e);
@@ -133,6 +151,10 @@ export class DeckGLRendererAdapter implements RendererAdapter {
         this.cloudBridge.createCloudLayer()
       ].filter(Boolean)
     });
+  }
+
+  public render(context: RenderingContext): void {
+    this.applyContext(context);
   }
 
   public destroy(): void {

@@ -29,6 +29,7 @@ import { CloudEngine } from '../../clouds'
 import { NightLightsEngine } from '../../nightlights'
 import { SpaceEngine } from '../../space'
 import { ChoreographyEngine } from '../../choreography'
+import { PerformanceEngine } from '../../performance'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -66,6 +67,7 @@ export class EarthEngine {
   private _nightLightsEngine: NightLightsEngine | null = null
   private _spaceEngine: SpaceEngine | null = null
   private _choreographyEngine: ChoreographyEngine | null = null
+  private _performanceEngine: PerformanceEngine | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -154,6 +156,9 @@ export class EarthEngine {
 
       const choreographyEngine = new ChoreographyEngine(cameraEngine, simulationClock)
 
+      const performanceEngine = new PerformanceEngine()
+      performanceEngine.initialize()
+
       this._fpsTracker = fpsTracker
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
@@ -171,6 +176,7 @@ export class EarthEngine {
       this._nightLightsEngine = nightLightsEngine
       this._spaceEngine = spaceEngine
       this._choreographyEngine = choreographyEngine
+      this._performanceEngine = performanceEngine
 
       // Start the simulation loop
       this._lastFrameTime = performance.now()
@@ -180,6 +186,7 @@ export class EarthEngine {
           const lastTime = this._lastFrameTime ?? currentTime;
           const realWorldDeltaMs = currentTime - lastTime;
           
+          this._performanceEngine?.tick(realWorldDeltaMs);
           this._choreographyEngine?.tick(realWorldDeltaMs);
           this._simulationClock?.tick(realWorldDeltaMs);
           this._cloudEngine?.update();
@@ -407,6 +414,10 @@ export class EarthEngine {
     return this._choreographyEngine
   }
 
+  getPerformanceEngine(): PerformanceEngine | null {
+    return this._performanceEngine
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -473,6 +484,8 @@ export class EarthEngine {
     this._spaceEngine = null
 
     this._choreographyEngine = null
+
+    this._performanceEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null
