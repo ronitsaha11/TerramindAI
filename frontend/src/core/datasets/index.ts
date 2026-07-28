@@ -25,5 +25,11 @@ export type { IMetadataProvider } from './contracts/metadata-provider.interface'
 export { 
   DatasetError, 
   ImportError, 
-  ValidationError 
+  ValidationError,
+  DuplicateDatasetError,
+  DatasetNotFoundError
 } from './errors/dataset.error';
+
+// Registry
+export type { IDatasetRegistry, RegistryChangeListener } from './registry/dataset-registry.interface';
+export { DatasetRegistry } from './registry/dataset-registry';

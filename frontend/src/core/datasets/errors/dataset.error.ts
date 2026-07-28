@@ -31,3 +31,23 @@ export class ValidationError extends DatasetError {
     this.name = 'ValidationError';
   }
 }
+
+/**
+ * Error thrown when attempting to register a dataset with an ID that already exists.
+ */
+export class DuplicateDatasetError extends DatasetError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DuplicateDatasetError';
+  }
+}
+
+/**
+ * Error thrown when a requested dataset is not found in the registry.
+ */
+export class DatasetNotFoundError extends DatasetError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatasetNotFoundError';
+  }
+}
