@@ -2,6 +2,7 @@ import { WorkspacePanel } from './WorkspacePanel'
 import { useLayerStore } from '@/features/earth/stores/useLayerStore'
 import { EarthEngine } from '@/features/earth/services/EarthEngine'
 import { Eye, EyeOff, Layers } from 'lucide-react'
+import { FeatureInspector } from '@/features/interactions/components'
 
 function LayersPanel() {
   const layers = useLayerStore(state => state.layers)
@@ -108,7 +109,11 @@ export function JobsPanel() {
   return <WorkspacePanel id="jobs" title="Jobs">Jobs placeholder content</WorkspacePanel>
 }
 export function InspectorPanel() {
-  return <WorkspacePanel id="inspector" title="Inspector">Inspector placeholder content</WorkspacePanel>
+  return (
+    <WorkspacePanel id="inspector" title="Inspector">
+      <FeatureInspector />
+    </WorkspacePanel>
+  )
 }
 export function SettingsPanel() {
   return <WorkspacePanel id="settings" title="Settings">Settings placeholder content</WorkspacePanel>

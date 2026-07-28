@@ -10,6 +10,9 @@ import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
 import { LayerManager } from './LayerManager'
 import { FPSTracker } from './FPSTracker'
+import { InteractionManager } from '../../../core/interactions/interaction-manager'
+import { DeckInteractionAdapter } from '../adapters/deck-interaction-adapter'
+import { InteractionBridge } from '../stores/interaction-bridge'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
@@ -26,6 +29,7 @@ export class EarthEngine {
   private _coordinates: CoordinateService | null = null
   private _deckOverlayManager: DeckOverlayManager | null = null
   private _layerManager: LayerManager | null = null
+  private _interactionBridge: InteractionBridge | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
   private _unsubWorkspace: (() => void) | null = null
@@ -163,7 +167,14 @@ export class EarthEngine {
         deckManager.initialize(map)
         this._deckOverlayManager = deckManager
 
-        const layerManager = new LayerManager()
+        const interactionManager = new InteractionManager()
+        const deckInteractionAdapter = new DeckInteractionAdapter(interactionManager)
+
+        const interactionBridge = new InteractionBridge(interactionManager)
+        interactionBridge.initialize()
+        this._interactionBridge = interactionBridge
+
+        const layerManager = new LayerManager(deckInteractionAdapter)
         layerManager.initialize(deckManager)
         this._layerManager = layerManager
 
@@ -259,6 +270,9 @@ export class EarthEngine {
 
     this._layerManager?.destroy()
     this._layerManager = null
+
+    this._interactionBridge?.destroy()
+    this._interactionBridge = null
 
     this._environmentController?.destroy()
     this._environmentController = null

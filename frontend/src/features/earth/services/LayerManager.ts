@@ -1,7 +1,8 @@
-import { type Layer } from '@deck.gl/core'
+import { type Layer, type PickingInfo } from '@deck.gl/core'
 import { GeoJsonLayer, type GeoJsonLayerProps } from '@deck.gl/layers'
 import { type DeckOverlayManager } from './DeckOverlayManager'
 import { useLayerStore } from '../stores/useLayerStore'
+import type { IDeckInteractionAdapter } from '../adapters/deck-interaction-adapter.interface'
 import {
   type LayerId,
   type LayerConfig,
@@ -22,6 +23,11 @@ export class LayerManager {
   private _deckOverlay: DeckOverlayManager | null = null
   private _initialized = false
   private _renderDirty = false
+  private readonly interactionAdapter: IDeckInteractionAdapter
+
+  constructor(interactionAdapter: IDeckInteractionAdapter) {
+    this.interactionAdapter = interactionAdapter
+  }
 
   // ─────────────────────────────────────────────
   // Lifecycle
@@ -181,11 +187,14 @@ export class LayerManager {
         data: config.data as GeoJsonLayerProps['data'],
         opacity: rt.opacity,
         pickable: true,
+        autoHighlight: true,
         stroked: true,
         filled: true,
         lineWidthMinPixels: 1,
         getFillColor: [6, 182, 212, 150],
         getLineColor: [6, 182, 212, 255],
+        onHover: (info: PickingInfo) => this.interactionAdapter.onLayerHover(info),
+        onClick: (info: PickingInfo) => this.interactionAdapter.onLayerClick(info),
         transitions: prefersReducedMotion ? undefined : {
           opacity: 300,
         },
