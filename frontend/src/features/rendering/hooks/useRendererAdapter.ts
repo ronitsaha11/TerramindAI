@@ -22,8 +22,9 @@ export function useRendererAdapter(containerRef: React.RefObject<HTMLDivElement 
     const cloudEngine = engine.getCloudEngine();
     const nightLightsEngine = engine.getNightLightsEngine();
     const spaceEngine = engine.getSpaceEngine();
+    const choreographyEngine = engine.getChoreographyEngine();
 
-    if (!coordinator || !cameraEngine || !streamingEngine || !terrainEngine || !oceanSystem || !atmosphereEngine || !cloudEngine || !nightLightsEngine || !spaceEngine) {
+    if (!coordinator || !cameraEngine || !streamingEngine || !terrainEngine || !oceanSystem || !atmosphereEngine || !cloudEngine || !nightLightsEngine || !spaceEngine || !choreographyEngine) {
       console.error('[useRendererAdapter] EarthEngine systems not properly initialized.');
       return;
     }
@@ -39,7 +40,8 @@ export function useRendererAdapter(containerRef: React.RefObject<HTMLDivElement 
         atmosphereEngine,
         cloudEngine,
         nightLightsEngine,
-        spaceEngine
+        spaceEngine,
+        choreographyEngine
       );
       coordinator.attachAdapter(adapter);
       coordinator.start();

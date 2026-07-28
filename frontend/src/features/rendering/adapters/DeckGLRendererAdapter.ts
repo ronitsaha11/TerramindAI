@@ -1,4 +1,4 @@
-import { Deck, _GlobeView as GlobeView, type MapViewState } from '@deck.gl/core';
+import { Deck, _GlobeView as GlobeView } from '@deck.gl/core';
 import type { RendererAdapter } from '../RendererAdapter';
 import type { RenderingContext } from '../RenderingTypes';
 import type { CameraEngine } from '../../../core/camera/CameraEngine';
@@ -9,6 +9,7 @@ import type { AtmosphereEngine } from '../../environment/AtmosphereEngine';
 import type { CloudEngine } from '../../clouds/CloudEngine';
 import type { NightLightsEngine } from '../../nightlights/NightLightsEngine';
 import type { SpaceEngine } from '../../space/SpaceEngine';
+import type { ChoreographyEngine } from '../../choreography/ChoreographyEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
 import { DeckGLCloudBridge } from '../bridges/DeckGLCloudBridge';
@@ -28,6 +29,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private cloudEngine: CloudEngine;
   private nightLightsEngine: NightLightsEngine;
   private spaceEngine: SpaceEngine;
+  private choreographyEngine: ChoreographyEngine;
   private terrainBridge: DeckGLTerrainBridge;
   private atmosphereBridge: DeckGLAtmosphereBridge;
   private cloudBridge: DeckGLCloudBridge;
@@ -43,7 +45,8 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     atmosphereEngine: AtmosphereEngine,
     cloudEngine: CloudEngine,
     nightLightsEngine: NightLightsEngine,
-    spaceEngine: SpaceEngine
+    spaceEngine: SpaceEngine,
+    choreographyEngine: ChoreographyEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
@@ -54,6 +57,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     this.cloudEngine = cloudEngine;
     this.nightLightsEngine = nightLightsEngine;
     this.spaceEngine = spaceEngine;
+    this.choreographyEngine = choreographyEngine;
     this.nightLightsBridge = new DeckGLNightLightsBridge(this.nightLightsEngine);
     this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine, this.nightLightsBridge);
     this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
@@ -77,15 +81,24 @@ export class DeckGLRendererAdapter implements RendererAdapter {
         } as any,
         views: [new GlobeView({ id: 'globe', controller: true })],
         effects: [this.atmosphereBridge.createLightingEffect()],
-        onViewStateChange: ({ viewState }) => {
-          const ms = viewState as MapViewState;
-          // Route user interaction directly back to the authoritative domain
+        controller: true,
+        onViewStateChange: ({ viewState, interactionState }) => {
+          // Interruption on user input (pan, rotate, zoom)
+          if (interactionState && (interactionState.isDragging || interactionState.isPanning || interactionState.isRotating || interactionState.isZooming)) {
+            if (this.choreographyEngine.isAnimating()) {
+              this.choreographyEngine.interrupt('USER_INPUT');
+            }
+          }
+          
+          // Let the camera engine handle the new state
           this.cameraEngine.jumpTo({
-            longitude: ms.longitude,
-            latitude: ms.latitude,
-            pitch: ms.pitch,
-            bearing: ms.bearing,
-            altitude: this.zoomToAltitude(ms.zoom)
+            latitude: viewState.latitude,
+            longitude: viewState.longitude,
+            altitude: this.zoomToAltitude(viewState.zoom),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            bearing: (viewState as any).bearing || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            pitch: (viewState as any).pitch || 0
           });
         },
         layers: []
