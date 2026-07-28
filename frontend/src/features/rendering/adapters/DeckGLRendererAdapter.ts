@@ -7,9 +7,11 @@ import type { TerrainElevationEngine } from '../../terrain/TerrainElevationEngin
 import type { OceanSystem } from '../../ocean/OceanSystem';
 import type { AtmosphereEngine } from '../../environment/AtmosphereEngine';
 import type { CloudEngine } from '../../clouds/CloudEngine';
+import type { NightLightsEngine } from '../../nightlights/NightLightsEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
 import { DeckGLCloudBridge } from '../bridges/DeckGLCloudBridge';
+import { DeckGLNightLightsBridge } from '../bridges/DeckGLNightLightsBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,9 +24,11 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private oceanSystem: OceanSystem;
   private atmosphereEngine: AtmosphereEngine;
   private cloudEngine: CloudEngine;
+  private nightLightsEngine: NightLightsEngine;
   private terrainBridge: DeckGLTerrainBridge;
   private atmosphereBridge: DeckGLAtmosphereBridge;
   private cloudBridge: DeckGLCloudBridge;
+  private nightLightsBridge: DeckGLNightLightsBridge;
 
   constructor(
     container: HTMLDivElement,
@@ -33,7 +37,8 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     terrainEngine: TerrainElevationEngine,
     oceanSystem: OceanSystem,
     atmosphereEngine: AtmosphereEngine,
-    cloudEngine: CloudEngine
+    cloudEngine: CloudEngine,
+    nightLightsEngine: NightLightsEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
@@ -42,7 +47,9 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     this.oceanSystem = oceanSystem;
     this.atmosphereEngine = atmosphereEngine;
     this.cloudEngine = cloudEngine;
-    this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine);
+    this.nightLightsEngine = nightLightsEngine;
+    this.nightLightsBridge = new DeckGLNightLightsBridge(this.nightLightsEngine);
+    this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine, this.nightLightsBridge);
     this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
     this.cloudBridge = new DeckGLCloudBridge(this.cloudEngine);
   }
