@@ -25,6 +25,7 @@ import { StreamingEngine } from '../../streaming'
 import { TerrainElevationEngine } from '../../terrain'
 import { OceanSystem } from '../../ocean'
 import { AtmosphereEngine } from '../../environment'
+import { CloudEngine } from '../../clouds'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -58,6 +59,7 @@ export class EarthEngine {
   private _terrainEngine: TerrainElevationEngine | null = null
   private _oceanSystem: OceanSystem | null = null
   private _atmosphereEngine: AtmosphereEngine | null = null
+  private _cloudEngine: CloudEngine | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -135,6 +137,9 @@ export class EarthEngine {
       const atmosphereEngine = new AtmosphereEngine()
       atmosphereEngine.initialize()
 
+      const cloudEngine = new CloudEngine(simulationClock)
+      cloudEngine.initialize()
+
       this._fpsTracker = fpsTracker
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
@@ -148,6 +153,7 @@ export class EarthEngine {
       this._terrainEngine = terrainEngine
       this._oceanSystem = oceanSystem
       this._atmosphereEngine = atmosphereEngine
+      this._cloudEngine = cloudEngine
 
       // Start the simulation loop
       this._lastFrameTime = performance.now()
@@ -157,6 +163,7 @@ export class EarthEngine {
         if (this._lastFrameTime !== null) {
           const realWorldDeltaMs = currentTime - this._lastFrameTime;
           this._simulationClock?.tick(realWorldDeltaMs);
+          this._cloudEngine?.update();
         }
         this._lastFrameTime = currentTime;
         
@@ -364,6 +371,10 @@ export class EarthEngine {
     return this._atmosphereEngine
   }
 
+  getCloudEngine(): CloudEngine | null {
+    return this._cloudEngine
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -420,6 +431,8 @@ export class EarthEngine {
 
     this._atmosphereEngine?.destroy()
     this._atmosphereEngine = null
+
+    this._cloudEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null

@@ -19,8 +19,9 @@ export function useRendererAdapter(containerRef: React.RefObject<HTMLDivElement 
     const terrainEngine = engine.getTerrainEngine();
     const oceanSystem = engine.getOceanSystem();
     const atmosphereEngine = engine.getAtmosphereEngine();
+    const cloudEngine = engine.getCloudEngine();
 
-    if (!coordinator || !cameraEngine || !streamingEngine || !terrainEngine || !oceanSystem || !atmosphereEngine) {
+    if (!coordinator || !cameraEngine || !streamingEngine || !terrainEngine || !oceanSystem || !atmosphereEngine || !cloudEngine) {
       console.error('[useRendererAdapter] EarthEngine systems not properly initialized.');
       return;
     }
@@ -33,7 +34,8 @@ export function useRendererAdapter(containerRef: React.RefObject<HTMLDivElement 
         streamingEngine,
         terrainEngine,
         oceanSystem,
-        atmosphereEngine
+        atmosphereEngine,
+        cloudEngine
       );
       coordinator.attachAdapter(adapter);
       coordinator.start();

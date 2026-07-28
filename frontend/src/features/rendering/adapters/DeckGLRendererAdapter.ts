@@ -6,8 +6,10 @@ import type { StreamingEngine } from '../../streaming/StreamingEngine';
 import type { TerrainElevationEngine } from '../../terrain/TerrainElevationEngine';
 import type { OceanSystem } from '../../ocean/OceanSystem';
 import type { AtmosphereEngine } from '../../environment/AtmosphereEngine';
+import type { CloudEngine } from '../../clouds/CloudEngine';
 import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 import { DeckGLAtmosphereBridge } from '../bridges/DeckGLAtmosphereBridge';
+import { DeckGLCloudBridge } from '../bridges/DeckGLCloudBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,8 +21,10 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private terrainEngine: TerrainElevationEngine;
   private oceanSystem: OceanSystem;
   private atmosphereEngine: AtmosphereEngine;
+  private cloudEngine: CloudEngine;
   private terrainBridge: DeckGLTerrainBridge;
   private atmosphereBridge: DeckGLAtmosphereBridge;
+  private cloudBridge: DeckGLCloudBridge;
 
   constructor(
     container: HTMLDivElement,
@@ -28,7 +32,8 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     streamingEngine: StreamingEngine,
     terrainEngine: TerrainElevationEngine,
     oceanSystem: OceanSystem,
-    atmosphereEngine: AtmosphereEngine
+    atmosphereEngine: AtmosphereEngine,
+    cloudEngine: CloudEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
@@ -36,8 +41,10 @@ export class DeckGLRendererAdapter implements RendererAdapter {
     this.terrainEngine = terrainEngine;
     this.oceanSystem = oceanSystem;
     this.atmosphereEngine = atmosphereEngine;
+    this.cloudEngine = cloudEngine;
     this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine);
     this.atmosphereBridge = new DeckGLAtmosphereBridge(this.atmosphereEngine);
+    this.cloudBridge = new DeckGLCloudBridge(this.cloudEngine);
   }
 
   public async initialize(): Promise<boolean> {
@@ -94,8 +101,9 @@ export class DeckGLRendererAdapter implements RendererAdapter {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       layers: [
-        this.terrainBridge.createTerrainLayer()
-      ]
+        this.terrainBridge.createTerrainLayer(),
+        this.cloudBridge.createCloudLayer()
+      ].filter(Boolean)
     });
   }
 
