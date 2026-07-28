@@ -3,7 +3,9 @@ import type { RendererAdapter } from '../RendererAdapter';
 import type { RenderingContext } from '../RenderingTypes';
 import type { CameraEngine } from '../../../core/camera/CameraEngine';
 import type { StreamingEngine } from '../../streaming/StreamingEngine';
-import { DeckGLTileBridge } from '../bridges/DeckGLTileBridge';
+import type { TerrainElevationEngine } from '../../terrain/TerrainElevationEngine';
+import type { OceanSystem } from '../../ocean/OceanSystem';
+import { DeckGLTerrainBridge } from '../bridges/DeckGLTerrainBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,17 +14,23 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   private container: HTMLDivElement;
   private cameraEngine: CameraEngine;
   private streamingEngine: StreamingEngine;
-  private tileBridge: DeckGLTileBridge;
+  private terrainEngine: TerrainElevationEngine;
+  private oceanSystem: OceanSystem;
+  private terrainBridge: DeckGLTerrainBridge;
 
   constructor(
     container: HTMLDivElement,
     cameraEngine: CameraEngine,
-    streamingEngine: StreamingEngine
+    streamingEngine: StreamingEngine,
+    terrainEngine: TerrainElevationEngine,
+    oceanSystem: OceanSystem
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
     this.streamingEngine = streamingEngine;
-    this.tileBridge = new DeckGLTileBridge(this.streamingEngine);
+    this.terrainEngine = terrainEngine;
+    this.oceanSystem = oceanSystem;
+    this.terrainBridge = new DeckGLTerrainBridge(this.terrainEngine, this.oceanSystem, this.streamingEngine);
   }
 
   public async initialize(): Promise<boolean> {
@@ -78,7 +86,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       layers: [
-        this.tileBridge.createBaseImageryLayer()
+        this.terrainBridge.createTerrainLayer()
       ]
     });
   }
