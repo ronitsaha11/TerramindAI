@@ -19,7 +19,8 @@ import { DeckGLSpaceBridge } from '../bridges/DeckGLSpaceBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private deck: any | null = null;
+  private deck: Deck<any> | null = null;
+  private unsubProfileUpdate: (() => void) | null = null;
   
   private container: HTMLDivElement;
   private cameraEngine: CameraEngine;
@@ -116,7 +117,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
       });
       
       // Update device pixels on the fly if profile changes
-      this.performanceEngine.events.onProfileUpdated((newProfile) => {
+      this.unsubProfileUpdate = this.performanceEngine.events.onProfileUpdated((newProfile) => {
         if (this.deck) {
           this.deck.setProps({
             useDevicePixels: newProfile.useDevicePixels
@@ -158,6 +159,11 @@ export class DeckGLRendererAdapter implements RendererAdapter {
   }
 
   public destroy(): void {
+    if (this.unsubProfileUpdate) {
+      this.unsubProfileUpdate();
+      this.unsubProfileUpdate = null;
+    }
+
     if (this.deck) {
       this.deck.finalize();
       this.deck = null;

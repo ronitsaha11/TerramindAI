@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { EarthEngine } from '../services/EarthEngine'
+import { connectTelemetry, disconnectTelemetry } from '../../ui/stores/useTelemetryStore'
 
 export function useRenderSurface(containerRef: React.RefObject<HTMLDivElement | null>) {
   const engineRef = useRef<EarthEngine | null>(null)
@@ -13,6 +14,8 @@ export function useRenderSurface(containerRef: React.RefObject<HTMLDivElement | 
 
     engine.attach(container)
     engine.initialize()
+    
+    connectTelemetry(engine)
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -24,6 +27,7 @@ export function useRenderSurface(containerRef: React.RefObject<HTMLDivElement | 
 
     return () => {
       observer.disconnect()
+      disconnectTelemetry()
       engine.destroy()
       engineRef.current = null
     }

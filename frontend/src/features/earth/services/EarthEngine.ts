@@ -378,6 +378,10 @@ export class EarthEngine {
     return this._cameraEngine
   }
 
+  getSimulationClock(): SimulationClock | null {
+    return this._simulationClock
+  }
+
   getRenderingCoordinator(): RenderingCoordinator | null {
     return this._renderingCoordinator
   }
