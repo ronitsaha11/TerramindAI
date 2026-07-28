@@ -1,21 +1,28 @@
 import { Deck, _GlobeView as GlobeView, type MapViewState } from '@deck.gl/core';
 import type { RendererAdapter } from '../RendererAdapter';
 import type { RenderingContext } from '../RenderingTypes';
-import { GlobeLayerFactory } from '../layers/GlobeLayerFactory';
 import type { CameraEngine } from '../../../core/camera/CameraEngine';
+import type { StreamingEngine } from '../../streaming/StreamingEngine';
+import { DeckGLTileBridge } from '../bridges/DeckGLTileBridge';
 
 export class DeckGLRendererAdapter implements RendererAdapter {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private deck: any | null = null;
   
   private container: HTMLDivElement;
   private cameraEngine: CameraEngine;
+  private streamingEngine: StreamingEngine;
+  private tileBridge: DeckGLTileBridge;
 
   constructor(
     container: HTMLDivElement,
-    cameraEngine: CameraEngine
+    cameraEngine: CameraEngine,
+    streamingEngine: StreamingEngine
   ) {
     this.container = container;
     this.cameraEngine = cameraEngine;
+    this.streamingEngine = streamingEngine;
+    this.tileBridge = new DeckGLTileBridge(this.streamingEngine);
   }
 
   public async initialize(): Promise<boolean> {
@@ -30,6 +37,7 @@ export class DeckGLRendererAdapter implements RendererAdapter {
           maxZoom: 22,
           pitch: 0,
           bearing: 0
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
         views: [new GlobeView({ id: 'globe', controller: true })],
         onViewStateChange: ({ viewState }) => {
@@ -67,8 +75,11 @@ export class DeckGLRendererAdapter implements RendererAdapter {
         zoom,
         pitch: context.camera.pitch,
         bearing: context.camera.bearing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
-      layers: GlobeLayerFactory.createGlobeLayers(context)
+      layers: [
+        this.tileBridge.createBaseImageryLayer()
+      ]
     });
   }
 

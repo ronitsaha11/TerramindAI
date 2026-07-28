@@ -21,6 +21,7 @@ import { CameraEngine } from '../../../core/camera'
 import { CameraBridge } from '../../camera/stores/camera-bridge'
 import { RenderingCoordinator } from '../../rendering'
 import { RenderingBridge } from '../../rendering/stores/rendering-bridge'
+import { StreamingEngine } from '../../streaming'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -50,6 +51,7 @@ export class EarthEngine {
   private _cameraBridge: CameraBridge | null = null
   private _renderingCoordinator: RenderingCoordinator | null = null
   private _renderingBridge: RenderingBridge | null = null
+  private _streamingEngine: StreamingEngine | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
   private _animationFrameId: number | null = null
@@ -115,6 +117,9 @@ export class EarthEngine {
       const renderingCoordinator = new RenderingCoordinator(cameraEngine, earthEphemeris)
       const renderingBridge = new RenderingBridge(renderingCoordinator)
       renderingBridge.initialize()
+      
+      const streamingEngine = new StreamingEngine(cameraEngine)
+      streamingEngine.initialize()
 
       this._fpsTracker = fpsTracker
       this._simulationClock = simulationClock
@@ -125,6 +130,7 @@ export class EarthEngine {
       this._cameraBridge = cameraBridge
       this._renderingCoordinator = renderingCoordinator
       this._renderingBridge = renderingBridge
+      this._streamingEngine = streamingEngine
 
       // Start the simulation loop
       this._lastFrameTime = performance.now()
@@ -325,6 +331,10 @@ export class EarthEngine {
     return this._renderingCoordinator
   }
 
+  getStreamingEngine(): StreamingEngine | null {
+    return this._streamingEngine
+  }
+
   // ─────────────────────────────────────────────
   // Resize & Destroy
   // ─────────────────────────────────────────────
@@ -370,6 +380,9 @@ export class EarthEngine {
     this._renderingBridge = null
     this._renderingCoordinator?.destroy()
     this._renderingCoordinator = null
+    
+    this._streamingEngine?.destroy()
+    this._streamingEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null

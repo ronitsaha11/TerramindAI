@@ -16,6 +16,8 @@
     "@deck.gl/geo-layers": "^9.3.7",
     "@deck.gl/layers": "^9.3.7",
     "@deck.gl/mapbox": "^9.3.7",
+    "@loaders.gl/core": "^4.4.3",
+    "@loaders.gl/images": "^4.4.3",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-query-devtools": "^5.101.4",

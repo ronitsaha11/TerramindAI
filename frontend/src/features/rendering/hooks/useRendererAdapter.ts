@@ -15,15 +15,16 @@ export function useRendererAdapter(containerRef: React.RefObject<HTMLDivElement 
 
     const coordinator = engine.getRenderingCoordinator();
     const cameraEngine = engine.getCameraEngine();
+    const streamingEngine = engine.getStreamingEngine();
 
-    if (!coordinator || !cameraEngine) {
+    if (!coordinator || !cameraEngine || !streamingEngine) {
       console.error('[useRendererAdapter] EarthEngine systems not properly initialized.');
       return;
     }
 
     // Only attach if we aren't already initialized
     if (coordinator.getLifecycleState() === RenderingLifecycleState.UNINITIALIZED) {
-      const adapter = new DeckGLRendererAdapter(container, cameraEngine);
+      const adapter = new DeckGLRendererAdapter(container, cameraEngine, streamingEngine);
       coordinator.attachAdapter(adapter);
       coordinator.start();
     }
