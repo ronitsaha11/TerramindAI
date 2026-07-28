@@ -21,6 +21,8 @@ import { ViewportQueryController } from './viewport-query-controller'
 import { SpatialBridge } from '../../spatial/stores/spatial-bridge'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
+import { SimulationClock } from '../../../core/simulation'
+import { SimulationBridge } from '../../simulation/stores/simulation-bridge'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -42,8 +44,12 @@ export class EarthEngine {
   private _datasetRegistry: DatasetRegistry | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
+  private _simulationClock: SimulationClock | null = null
+  private _simulationBridge: SimulationBridge | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
+  private _animationFrameId: number | null = null
+  private _lastFrameTime: number | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -110,12 +116,18 @@ export class EarthEngine {
       const projection = new ProjectionService()
       const fpsTracker = new FPSTracker()
       const environmentController = new EnvironmentController()
+      
+      const simulationClock = new SimulationClock()
+      const simulationBridge = new SimulationBridge(simulationClock)
+      simulationBridge.initialize()
 
       this._camera = camera
       this._projection = projection
       this._coordinates = coordinates
       this._fpsTracker = fpsTracker
       this._environmentController = environmentController
+      this._simulationClock = simulationClock
+      this._simulationBridge = simulationBridge
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
@@ -215,6 +227,21 @@ export class EarthEngine {
           environmentController.sync(state)
         })
 
+        // ─── Simulation Loop ─────────────────────────
+        this._lastFrameTime = performance.now()
+        const loop = (currentTime: number) => {
+          if (this._state === 'destroyed') return;
+          
+          if (this._lastFrameTime !== null) {
+            const realWorldDeltaMs = currentTime - this._lastFrameTime;
+            this._simulationClock?.tick(realWorldDeltaMs);
+          }
+          this._lastFrameTime = currentTime;
+          
+          this._animationFrameId = requestAnimationFrame(loop);
+        }
+        this._animationFrameId = requestAnimationFrame(loop);
+
         this.setState('ready')
       })
 
@@ -293,6 +320,15 @@ export class EarthEngine {
       this._unsubEnvironment()
       this._unsubEnvironment = null
     }
+
+    if (this._animationFrameId !== null) {
+      cancelAnimationFrame(this._animationFrameId)
+      this._animationFrameId = null
+    }
+
+    this._simulationBridge?.destroy()
+    this._simulationBridge = null
+    this._simulationClock = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null
