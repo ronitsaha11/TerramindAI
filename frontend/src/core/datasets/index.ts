@@ -39,3 +39,11 @@ export { GeoJsonValidator } from './validation/geojson.validator';
 export { GeoJsonMetadataProvider } from './metadata/geojson-metadata-provider';
 export { GeoJsonImporter } from './importers/geojson.importer';
 
+// Stores
+export * from './stores';
+
+// Services
+export * from './services';
+
+
+
