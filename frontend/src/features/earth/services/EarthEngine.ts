@@ -167,15 +167,6 @@ export class EarthEngine {
         layerManager.initialize(deckManager)
         this._layerManager = layerManager
 
-        // Register demo layer through LayerManager (never directly through DeckOverlayManager)
-        layerManager.registerLayer({
-          id: 'demo-cities',
-          label: 'Demo Cities',
-          category: 'scatter',
-          style: { opacity: 0.85, visible: true },
-          description: 'Demonstration scatter overlay — major world cities',
-        })
-
         // ─── Environment (Terrain/Sky) ────────────────
         environmentController.initialize(map)
         

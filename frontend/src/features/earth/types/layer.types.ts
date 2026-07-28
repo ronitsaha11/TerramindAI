@@ -32,6 +32,7 @@ export interface LayerConfig {
   label: string
   category: LayerCategory
   style: LayerStyle
+  data?: unknown
   group?: string
   description?: string
 }

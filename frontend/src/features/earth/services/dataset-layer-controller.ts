@@ -101,6 +101,7 @@ export class DatasetLayerController implements IDatasetLayerController {
         id: definition.id,
         label: definition.name,
         category: definition.renderType as LayerCategory,
+        data: definition.sourceData,
         style: {
           visible: definition.visible,
           opacity: definition.opacity,

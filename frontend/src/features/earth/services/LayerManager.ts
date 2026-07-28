@@ -1,5 +1,5 @@
 import { type Layer } from '@deck.gl/core'
-import { ScatterplotLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, type GeoJsonLayerProps } from '@deck.gl/layers'
 import { type DeckOverlayManager } from './DeckOverlayManager'
 import { useLayerStore } from '../stores/useLayerStore'
 import {
@@ -9,22 +9,6 @@ import {
   type LayerState,
 } from '../types/layer.types'
 
-interface DemoPoint {
-  position: [number, number]
-  radius: number
-  color: [number, number, number, number]
-}
-
-const DEMO_POINTS: DemoPoint[] = [
-  { position: [2.3522, 48.8566],   radius: 40000, color: [0, 188, 212, 200] },   // Paris
-  { position: [-0.1278, 51.5074],  radius: 40000, color: [156, 39, 176, 200] },  // London
-  { position: [13.4050, 52.5200],  radius: 40000, color: [255, 87, 34, 200] },   // Berlin
-  { position: [-73.9857, 40.7484], radius: 40000, color: [76, 175, 80, 200] },   // New York
-  { position: [139.6917, 35.6895], radius: 40000, color: [255, 193, 7, 200] },   // Tokyo
-  { position: [-43.1729, -22.9068],radius: 40000, color: [244, 67, 54, 200] },   // Rio
-  { position: [28.9784, 41.0082],  radius: 40000, color: [0, 150, 136, 200] },   // Istanbul
-  { position: [72.8777, 19.0760],  radius: 40000, color: [233, 30, 99, 200] },   // Mumbai
-]
 
 /**
  * LayerManager is the canonical owner of all layer business logic.
@@ -184,27 +168,32 @@ export class LayerManager {
   }
 
   // ─────────────────────────────────────────────
-  // Static factory — demo layer
+  // Private Layer Builders
   // ─────────────────────────────────────────────
 
-  static buildDemoLayer(id: LayerId, opacity: number): Layer {
+  private buildDeckLayer(rt: LayerRuntime): Layer | null {
+    const config = rt.definition.config
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    return new ScatterplotLayer<DemoPoint>({
-      id,
-      data: DEMO_POINTS,
-      opacity,
-      transitions: prefersReducedMotion ? undefined : {
-        opacity: 300,
-        getFillColor: 300,
-      },
-      getPosition: (d: DemoPoint) => d.position,
-      getRadius: (d: DemoPoint) => d.radius,
-      getFillColor: (d: DemoPoint) => d.color,
-      radiusUnits: 'meters',
-      radiusMinPixels: 4,
-      radiusMaxPixels: 40,
-      pickable: false,
-    })
+    
+    if (config.category === 'geojson') {
+      return new GeoJsonLayer({
+        id: config.id,
+        data: config.data as GeoJsonLayerProps['data'],
+        opacity: rt.opacity,
+        pickable: true,
+        stroked: true,
+        filled: true,
+        lineWidthMinPixels: 1,
+        getFillColor: [6, 182, 212, 150],
+        getLineColor: [6, 182, 212, 255],
+        transitions: prefersReducedMotion ? undefined : {
+          opacity: 300,
+        },
+      })
+    }
+
+    console.warn(`LayerManager: Unsupported layer category '${config.category}' for layer '${config.id}'`)
+    return null
   }
 
   // ─────────────────────────────────────────────
@@ -223,11 +212,15 @@ export class LayerManager {
       .filter((rt) => rt.visible)
       .map((rt) => {
         if (!rt.deckLayer || rt.dirty) {
-          rt.deckLayer = LayerManager.buildDemoLayer(rt.definition.config.id, rt.opacity)
+          const layer = this.buildDeckLayer(rt)
+          if (layer) {
+            rt.deckLayer = layer
+          }
           rt.dirty = false
         }
-        return rt.deckLayer as Layer
+        return rt.deckLayer as Layer | null
       })
+      .filter((layer): layer is Layer => layer !== null)
   }
 
   private _reorderAfterRemoval(): void {
