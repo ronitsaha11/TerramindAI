@@ -1,21 +1,14 @@
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
 import { useCursorStore } from '../stores/useCursorStore'
-import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
-import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
-import { useEnvironmentStore } from '../stores/useEnvironmentStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
 import { LayerManager } from './LayerManager'
 import { FPSTracker } from './FPSTracker'
-import { InteractionManager } from '../../../core/interactions/interaction-manager'
-import { DeckInteractionAdapter } from '../adapters/deck-interaction-adapter'
 import { InteractionBridge } from '../stores/interaction-bridge'
-import { StyleEvaluator } from '../../../core/styles/style-evaluator'
 import { DatasetLayerFactory } from '../../../core/datasets/rendering/dataset-layer.factory'
-import { SpatialEngine } from '../../../core/spatial/spatial.engine'
 import { DatasetRegistry } from '../../../core/datasets/registry/dataset-registry'
 import { ViewportQueryController } from './viewport-query-controller'
 import { SpatialBridge } from '../../spatial/stores/spatial-bridge'
@@ -102,31 +95,11 @@ export class EarthEngine {
       console.warn(`[EarthEngine] Cannot initialize — engine is in "${this._state}" state.`)
       return
     }
-    if (!this._hostElement) {
-      console.error('[EarthEngine] Cannot initialize — no host element attached.')
-      return
-    }
 
     this.setState('mounting')
 
     try {
-      const map = new MapLibreMap({
-        container: this._hostElement,
-        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-        center: [0, 20],
-        zoom: 2,
-        pitch: 0,
-        bearing: 0,
-        attributionControl: {},
-      })
-
-      this._map = map
-
-      const camera = new CameraController()
-      const coordinates = new CoordinateService()
-      const projection = new ProjectionService()
       const fpsTracker = new FPSTracker()
-      const environmentController = new EnvironmentController()
       
       const cameraEngine = new CameraEngine()
       const cameraBridge = new CameraBridge(cameraEngine)
@@ -143,11 +116,7 @@ export class EarthEngine {
       const renderingBridge = new RenderingBridge(renderingCoordinator)
       renderingBridge.initialize()
 
-      this._camera = camera
-      this._projection = projection
-      this._coordinates = coordinates
       this._fpsTracker = fpsTracker
-      this._environmentController = environmentController
       this._simulationClock = simulationClock
       this._simulationBridge = simulationBridge
       this._earthReferenceFrame = earthReferenceFrame
@@ -157,6 +126,25 @@ export class EarthEngine {
       this._renderingCoordinator = renderingCoordinator
       this._renderingBridge = renderingBridge
 
+      // Start the simulation loop
+      this._lastFrameTime = performance.now()
+      const loop = (currentTime: number) => {
+        if (this._state === 'destroyed') return;
+        
+        if (this._lastFrameTime !== null) {
+          const realWorldDeltaMs = currentTime - this._lastFrameTime;
+          this._simulationClock?.tick(realWorldDeltaMs);
+        }
+        this._lastFrameTime = currentTime;
+        
+        this._animationFrameId = requestAnimationFrame(loop);
+      }
+      this._animationFrameId = requestAnimationFrame(loop);
+
+      this.setState('ready')
+
+      // Legacy maplibre initialization skipped
+      /*
       map.once('load', () => {
         if (this._state !== 'mounting') return
 
@@ -273,12 +261,8 @@ export class EarthEngine {
         this.setState('ready')
       })
 
-      map.on('error', (e) => {
-        console.error('[EarthEngine] MapLibre error:', e.error)
-        if (this._state === 'ready' || this._state === 'mounting') {
-          this.setState('error')
-        }
       })
+      */
     } catch (err) {
       console.error('[EarthEngine] Failed to create MapLibre map:', err)
       this.setState('error')
