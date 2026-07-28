@@ -191,8 +191,10 @@ export class LayerManager {
         stroked: true,
         filled: true,
         lineWidthMinPixels: 1,
-        getFillColor: [6, 182, 212, 150],
-        getLineColor: [6, 182, 212, 255],
+        getFillColor: (config.style.getFillColor as GeoJsonLayerProps['getFillColor']) ?? [6, 182, 212, 150],
+        getLineColor: (config.style.getLineColor as GeoJsonLayerProps['getLineColor']) ?? [6, 182, 212, 255],
+        getLineWidth: (config.style.getLineWidth as GeoJsonLayerProps['getLineWidth']) ?? 1,
+        getRadius: (config.style.getRadius as GeoJsonLayerProps['getRadius']) ?? 5,
         onHover: (info: PickingInfo) => this.interactionAdapter.onLayerHover(info),
         onClick: (info: PickingInfo) => this.interactionAdapter.onLayerClick(info),
         transitions: prefersReducedMotion ? undefined : {

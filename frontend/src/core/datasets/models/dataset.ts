@@ -1,6 +1,7 @@
 import type { DatasetType } from '../types/dataset-type';
 import type { DatasetLifecycleState } from '../types/dataset-lifecycle';
 import type { IDatasetMetadata } from '../metadata/metadata.interface';
+import type { DatasetStyle } from '../../styles/style.types';
 
 /**
  * Represents an immutable domain object for a dataset in TerraMind AI.
@@ -49,4 +50,9 @@ export interface IDataset<
    * Timestamp indicating when the dataset was last updated.
    */
   readonly updatedAt: number;
+
+  /**
+   * Optional JSON-serializable styling configuration for the dataset.
+   */
+  readonly style?: DatasetStyle;
 }

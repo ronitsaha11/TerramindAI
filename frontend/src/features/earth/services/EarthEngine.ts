@@ -13,6 +13,8 @@ import { FPSTracker } from './FPSTracker'
 import { InteractionManager } from '../../../core/interactions/interaction-manager'
 import { DeckInteractionAdapter } from '../adapters/deck-interaction-adapter'
 import { InteractionBridge } from '../stores/interaction-bridge'
+import { StyleEvaluator } from '../../../core/styles/style-evaluator'
+import { DatasetLayerFactory } from '../../../core/datasets/rendering/dataset-layer.factory'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
 
@@ -30,6 +32,7 @@ export class EarthEngine {
   private _deckOverlayManager: DeckOverlayManager | null = null
   private _layerManager: LayerManager | null = null
   private _interactionBridge: InteractionBridge | null = null
+  private _datasetLayerFactory: DatasetLayerFactory | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
   private _unsubWorkspace: (() => void) | null = null
@@ -178,6 +181,10 @@ export class EarthEngine {
         layerManager.initialize(deckManager)
         this._layerManager = layerManager
 
+        const styleEvaluator = new StyleEvaluator()
+        const datasetLayerFactory = new DatasetLayerFactory(styleEvaluator)
+        this._datasetLayerFactory = datasetLayerFactory
+
         // ─── Environment (Terrain/Sky) ────────────────
         environmentController.initialize(map)
         
@@ -230,6 +237,10 @@ export class EarthEngine {
    */
   getLayerManager(): LayerManager | null {
     return this._layerManager
+  }
+
+  getDatasetLayerFactory(): DatasetLayerFactory | null {
+    return this._datasetLayerFactory
   }
 
   // ─────────────────────────────────────────────

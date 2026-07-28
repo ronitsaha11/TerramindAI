@@ -1,4 +1,5 @@
 import type { IDataset } from '../models/dataset';
+import type { DatasetStyle } from '../../styles/style.types';
 import type { IDatasetRegistry, RegistryChangeListener } from './dataset-registry.interface';
 import { DuplicateDatasetError, DatasetNotFoundError } from '../errors/dataset.error';
 
@@ -31,6 +32,22 @@ export class DatasetRegistry implements IDatasetRegistry {
     }
 
     this.datasets.delete(id);
+    this.notifyListeners();
+  }
+
+  public updateStyle(datasetId: string, style: DatasetStyle): void {
+    const dataset = this.datasets.get(datasetId);
+    if (!dataset) {
+      throw new DatasetNotFoundError(`Dataset with ID '${datasetId}' not found in registry.`);
+    }
+
+    const updatedDataset: IDataset = Object.freeze({
+      ...dataset,
+      style,
+      updatedAt: Date.now(),
+    });
+
+    this.datasets.set(datasetId, updatedDataset);
     this.notifyListeners();
   }
 

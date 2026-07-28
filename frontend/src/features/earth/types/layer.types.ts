@@ -24,6 +24,10 @@ export interface LayerStyle {
   color?: [number, number, number, number]  // RGBA
   radius?: number
   strokeWidth?: number
+  getFillColor?: unknown
+  getLineColor?: unknown
+  getLineWidth?: unknown
+  getRadius?: unknown
 }
 
 /** Static configuration provided at registration time. */

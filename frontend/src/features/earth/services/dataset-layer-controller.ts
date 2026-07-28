@@ -105,8 +105,10 @@ export class DatasetLayerController implements IDatasetLayerController {
         style: {
           visible: definition.visible,
           opacity: definition.opacity,
-          // Extract specific style properties if present in definition.style
-          // For now, we pass basic defaults or those derived from the definition.
+          getFillColor: definition.style.getFillColor,
+          getLineColor: definition.style.getLineColor,
+          getLineWidth: definition.style.getLineWidth,
+          getRadius: definition.style.getRadius,
         },
       };
 

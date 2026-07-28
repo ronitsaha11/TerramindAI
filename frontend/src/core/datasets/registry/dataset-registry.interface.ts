@@ -1,4 +1,5 @@
 import type { IDataset } from '../models/dataset';
+import type { DatasetStyle } from '../../styles/style.types';
 
 /**
  * Listener type for dataset registry change notifications.
@@ -28,6 +29,16 @@ export interface IDatasetRegistry {
    * @throws DatasetNotFoundError if the dataset is not found in the registry.
    */
   unregister(id: string): void;
+
+  /**
+   * Updates the style configuration of an existing dataset.
+   * Clones the dataset to maintain immutability and notifies subscribers.
+   * 
+   * @param datasetId - The ID of the dataset to update.
+   * @param style - The new style configuration.
+   * @throws DatasetNotFoundError if the dataset is not found in the registry.
+   */
+  updateStyle(datasetId: string, style: DatasetStyle): void;
 
   /**
    * Retrieves a dataset by its ID.
