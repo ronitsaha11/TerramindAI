@@ -25,9 +25,9 @@ export class EnvironmentController {
     this._map = map
 
     // Register the DEM source if it doesn't already exist
-    if (!map.getSource(TERRAIN_CONFIG.SOURCE_ID)) {
-      map.addSource(TERRAIN_CONFIG.SOURCE_ID, TERRAIN_CONFIG.SOURCE)
-    }
+    // if (!map.getSource(TERRAIN_CONFIG.SOURCE_ID)) {
+    //   map.addSource(TERRAIN_CONFIG.SOURCE_ID, TERRAIN_CONFIG.SOURCE)
+    // }
 
     // Apply any pending state
     if (this._state) {
@@ -67,15 +67,8 @@ export class EnvironmentController {
   }
 
   private _syncTerrain(state: EnvironmentStateSnapshot): void {
-    if (!this._map) return
-    if (state.terrainEnabled) {
-      this._map.setTerrain({
-        source: TERRAIN_CONFIG.SOURCE_ID,
-        exaggeration: state.terrainExaggeration,
-      })
-    } else {
-      this._map.setTerrain(null)
-    }
+    // Terrain disabled in map-only baseline to prevent maplibre fetching dead URLs
+    return
   }
 
   private _syncSky(state: EnvironmentStateSnapshot): void {
