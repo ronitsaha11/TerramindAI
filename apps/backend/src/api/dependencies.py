@@ -17,12 +17,15 @@ from src.analytics.indices import default_registry as default_index_registry
 from src.analytics.providers.base import RasterProvider
 from src.analytics.statistics import default_engine as default_statistics_engine
 from src.async_processing.service import JobService
+from src.core.config import settings
 from src.db.session import AsyncSessionLocal
 from src.geospatial.analytics import SpatialAnalyticsEngine
 from src.geospatial.geojson_exporter import GeoJSONExporter
 from src.geospatial.geometry_processor import GeometryProcessor
 from src.geospatial.interfaces import PolygonizerProtocol
 from src.geospatial.service import GeospatialService
+from src.nlq.interpreter import ClaudeInterpreter, NLQInterpreter
+from src.nlq.service import NaturalQueryService
 from src.providers.catalog.base import CatalogProvider
 from src.providers.catalog.earth_search import EarthSearchProvider
 from src.providers.tiles.base import TileProvider
@@ -213,3 +216,50 @@ def get_job_service() -> "JobService":
         task_registry=default_registry,
         celery_app=celery_app,
     )
+
+
+# The Anthropic SDK is imported on first use for the same reason rasterio is:
+# a missing or broken optional dependency should cost you one endpoint, not the
+# whole API.
+@lru_cache
+def _anthropic_client() -> object:
+    from anthropic import AsyncAnthropic
+
+    return AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+
+def get_nlq_interpreter() -> NLQInterpreter:
+    """Dependency provider for the Claude-backed interpreter.
+
+    Fails closed with 503 when no API key is configured, so a deployment
+    without Claude credentials still serves every other route.
+    """
+    if not settings.ANTHROPIC_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Natural-language queries are unavailable because "
+                "ANTHROPIC_API_KEY is not configured. Dataset and spatial "
+                "query endpoints are unaffected."
+            ),
+        )
+    try:
+        client = _anthropic_client()
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Natural-language queries are unavailable because the "
+                f"'anthropic' package could not be imported: {exc}."
+            ),
+        ) from exc
+    return ClaudeInterpreter(client, model=settings.NLQ_MODEL)
+
+
+def get_natural_query_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    dataset_service: Annotated[DatasetService, Depends(get_dataset_service)],
+    interpreter: Annotated[NLQInterpreter, Depends(get_nlq_interpreter)],
+) -> NaturalQueryService:
+    """Dependency provider for NaturalQueryService."""
+    return NaturalQueryService(uow, dataset_service, interpreter)

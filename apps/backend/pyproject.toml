@@ -24,7 +24,13 @@ ignore = []
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+# "live" tests call the real Claude API: they need credentials, cost money,
+# and are nondeterministic, so they are deselected by default and never run
+# in CI. Run them deliberately with: pytest -m live
+addopts = "-ra -q -m 'not live'"
+markers = [
+    "live: calls the real Claude API; requires ANTHROPIC_API_KEY",
+]
 testpaths = [
     "tests",
 ]
