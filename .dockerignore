@@ -1,0 +1,36 @@
+# Build context is the repository root, so this keeps the ~GB local virtualenv
+# and node_modules out of the image and the build fast.
+
+# Local environments — never bake real config or secrets into an image
+**/.env
+**/.env.local
+
+# Python
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+
+# Node / frontend — not part of the backend image
+**/node_modules
+frontend/dist
+frontend/.vite
+apps/frontend
+
+# Generated output and scratch
+**/*.log
+**/*.err
+apps/backend/freeze.txt
+apps/backend/mypy_out.txt
+
+# Not needed at runtime
+.git
+.github
+docs
+datasets
+scripts
+ruff.zip
+ruff-bin
+walkthrough.md
