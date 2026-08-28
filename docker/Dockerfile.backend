@@ -1,0 +1,55 @@
+# TerraMind AI — backend image (FastAPI + Celery worker share this image)
+#
+# Build context is the repository root:
+#   docker compose build backend
+#
+# Python 3.13 matches apps/backend/.venv, [tool.mypy] python_version and the CI
+# job. requirements.txt is a freeze taken from 3.13, so changing this can break
+# pinned wheels.
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# No system GDAL/PROJ/GEOS packages are installed on purpose. rasterio, pyproj
+# and shapely all ship manylinux wheels that bundle those libraries, and
+# rasterio declares no GDAL dependency. Installing libgdal-dev here would add
+# ~300MB and risk a version mismatch against the bundled copy.
+#
+# libexpat1 IS required. python:3.13-slim omits it and rasterio bundled GDAL
+# links against libexpat.so.1, so `import rasterio` fails with
+# "libexpat.so.1: cannot open shared object file" without it. Confirmed by
+# running ldd over rasterio bundled .so files: libexpat.so.1 was the only
+# unresolved dependency.
+#
+# curl is only needed for the container healthcheck.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl libexpat1 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Dependencies first so edits to source do not invalidate the pip layer.
+# requirements.txt carries `--extra-index-url https://download.pytorch.org/whl/cpu`
+# for the torch==2.13.0+cpu pin, which is not published on PyPI.
+COPY apps/backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# src/ lands at /app/src, so `python -m uvicorn src.main:app` resolves with the
+# working directory on sys.path. Note that pydantic-settings resolves
+# env_file=".env" relative to the working directory; .env is excluded by
+# .dockerignore, and configuration is supplied via the environment in
+# docker-compose.yml instead, which takes precedence anyway.
+COPY apps/backend/ /app/
+
+RUN useradd --create-home --uid 10001 appuser \
+ && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
+  CMD curl -fsS http://127.0.0.1:8000/api/v1/health || exit 1
+
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

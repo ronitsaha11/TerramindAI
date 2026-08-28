@@ -501,6 +501,493 @@ docker compose up -d db redis
 
 ---
 
+## 16. Styling fallback verification (temporary fixture)
+
+Previously recorded as ⚠️ unverified: every feature in `bangalore osm` carries a
+`category`, so the grey default branch was never exercised. This closes that gap.
+
+**No production styling logic was changed, and grey is not hardcoded anywhere in
+the rendering layer** — the fallback is produced by `buildCategoricalStyle`'s
+`defaultStyle` and emitted as the final branch of the compiled `case`
+expression.
+
+### Method
+
+A temporary dataset was uploaded through the real API (`POST
+/projects/{id}/datasets`) and rendered through the real UI. 9 polygons in three
+columns:
+
+| Column | Longitude | `category` property |
+| --- | --- | --- |
+| 3 features | 77.40 | `"park"` |
+| 3 features | 77.44 | `"hospital"` |
+| 3 features | 77.48 | **absent** |
+
+A feature with no `category` matches no equality rule, so it must fall through
+to the default branch.
+
+### Result — ✅ the grey fallback works
+
+The compiled expression contained **two** rules only; the uncategorised features
+produced none:
+
+```json
+rulesInOrder: [
+  { "category": "hospital", "colour": "rgba(230, 159, 0, 1.000)" },
+  { "category": "park",     "colour": "rgba(86, 180, 233, 1.000)" }
+]
+defaultBranch: "rgba(120, 120, 120, 1.000)"
+```
+
+The legend showed only `hospital` and `park`.
+
+Configuration alone is not proof, so rendered pixels were sampled from the WebGL
+framebuffer over each column:
+
+| Sample | Observed | Channel spread | Reading |
+| --- | --- | --- | --- |
+| hospital, x=77.449 | `rgb(91,68,13)` | 78 | warm — rule 1 |
+| park, x=77.409 | `rgb(39,72,91)` | 52 | cool — rule 2 |
+| **uncategorised, x=77.489** | **`rgb(54,54,54)`** | **0** | **neutral grey** |
+| **uncategorised, x=77.489 (2nd)** | **`rgb(54,54,55)`** | **1** | **neutral grey** |
+| basemap control, no feature | `rgb(14,14,14)` | 0 | dark basemap |
+
+The uncategorised samples are **neutral (spread ≈ 0) and brighter than the
+basemap control**, so a grey fill is genuinely being drawn rather than the
+basemap showing through. The arithmetic agrees: `fill-opacity` is 0.4, so
+`0.4 × 120 + 0.6 × 14 = 56`, against 54 observed.
+
+### Incidental finding — palette assignment is rank-based, not semantic
+
+The fixture gave `park` and `hospital` an equal count of 3.
+`summariseCategories` sorts by count descending and breaks ties with
+`localeCompare`, so `hospital` sorted first and took palette slot 0 (orange),
+while `park` took slot 1 (blue) — the reverse of their colours on the OSM
+dataset.
+
+This is correct, documented behaviour, not a defect: colours are assigned by
+**frequency rank**, not by category meaning. It does mean the shorthand
+"parks → orange, hospitals → blue" holds for `bangalore osm` only because parks
+(672) outnumber hospitals (473). A different dataset will assign different
+colours to the same names.
+
+Worth knowing before anyone treats those colours as fixed, or writes a test that
+assumes them.
+
+### Cleanup — ✅ fixture removed
+
+```
+before delete : datasets=1  features=9
+DELETE 1
+after delete  : datasets=0  features=0
+API           : 4 datasets, fixture present: False
+```
+
+The dataset row was deleted directly in Postgres, cascading to its features,
+because the backend has no DELETE endpoint (see the open items). The fixture
+file itself was written to a scratch directory outside the repository, so
+`git status` was unaffected throughout.
+
+---
+
+## 17. Backend in Docker — rasterio blocker resolved ✅
+
+The Smart App Control blocker (§3) is a **host policy**, so it does not apply
+inside a Linux container. The backend now runs in Docker with rasterio working.
+
+### Files added
+
+| File | Purpose |
+| --- | --- |
+| `docker/Dockerfile.backend` | `python:3.13-slim`; shared by the API and the Celery worker |
+| `.dockerignore` | Keeps `.venv`, `node_modules` and **`.env`** out of the build context |
+| `docker-compose.yml` | `backend` + `celery_worker` services added; healthchecks on `db`/`redis` |
+
+### Two real defects this exposed
+
+Both were pre-existing repository bugs that only surfaced in a clean environment.
+
+**1. `libexpat1` is required — my initial assessment was wrong.**
+
+The first inspection concluded that no system packages were needed, because
+rasterio's manylinux wheel bundles GDAL and declares no GDAL dependency. That is
+true but incomplete: the bundled GDAL still links against the system
+`libexpat.so.1`, which `python:3.13-slim` omits.
+
+```
+ImportError: libexpat.so.1: cannot open shared object file
+```
+
+Rather than guess packages, `ldd` was run over every `.so` in `rasterio` and
+`rasterio.libs`. Exactly one dependency was unresolved:
+
+```
+missing across rasterio + bundled libs : libexpat.so.1
+missing across pyproj / shapely        : (none - RPATH-resolved at runtime)
+```
+
+`libexpat1` alone fixes it. **No `libgdal-dev` is needed**, which keeps the
+image ~300MB smaller and avoids a version clash with the bundled GDAL 3.12.4.
+
+**2. `python-multipart` was missing from `requirements.txt`.**
+
+The container crash-looped on startup:
+
+```
+RuntimeError: Form data requires "python-multipart" to be installed.
+```
+
+The dataset upload endpoint uses `UploadFile`, which needs it. It was installed
+in the host venv — which is why uploads always worked locally — but never
+pinned. Comparing `pip freeze` against `requirements.txt` showed it was the only
+drift:
+
+```
+python-multipart==0.0.32
+```
+
+Now pinned; the freeze and the requirements file are identical again.
+
+### Verification — ✅
+
+Inside the running API container:
+
+```
+rasterio 1.5.1 | bundled GDAL 3.12.4
+get_raster_provider() -> COGRasterProvider
+get_polygonizer()     -> RasterPolygonizer
+```
+
+Those are the exact classes that are unimportable on the host.
+
+The decisive comparison, same request against both:
+
+| Environment | `POST /api/v1/analysis` | Meaning |
+| --- | --- | --- |
+| Host (native, SAC-blocked) | **503** | rasterio unavailable, dependency refused |
+| Container | **422** | dependency resolved; request reached body validation |
+
+422 is the expected response to the deliberately empty `{}` body. The word
+"rasterio" no longer appears anywhere in the error. The same holds for
+`POST /geospatial/vectorize`.
+
+The vector pipeline is unaffected by the move — all endpoints served from the
+container:
+
+```
+/health 200 · /ready 200 · /projects 200 (3) · /datasets 200 (4)
+/geojson 200 (1188 features) · contains 200 (1) · nearby 200 (74)
+POST /datasets (multipart) 201   <- python-multipart fix confirmed
+```
+
+Celery worker in-container:
+
+```
+[tasks]
+  . src.async_processing.tasks.ai_tasks.run_ai_inference_task
+  . src.async_processing.tasks.geospatial_tasks.run_geospatial_vectorization_task
+Connected to redis://redis:6379/0
+celery@39b999c9b55b ready.
+```
+
+CORS from the host browser origin to the containerised API:
+
+```
+OPTIONS /projects (Origin: http://localhost:5273) -> 200
+access-control-allow-origin: http://localhost:5273
+```
+
+All four containers report healthy.
+
+### Design notes
+
+- **No system GDAL/PROJ/GEOS.** Only `libexpat1` (rasterio) and `curl` (healthcheck).
+- **`.env` is excluded** from the build context, so local config and `SECRET_KEY`
+  are never baked into the image. Configuration comes from compose `environment:`,
+  which takes precedence over the `.env` file anyway.
+- **Container hostnames** — `@db:5432`, `redis://redis:6379`, not `localhost`.
+- **`--pool=solo` deliberately dropped** for the worker: that is a Windows-only
+  workaround for billiard permission errors and is unnecessary on Linux.
+- **Healthchecks** on `db`/`redis` with `depends_on: condition: service_healthy`,
+  so the backend cannot start against a database still initialising.
+- **The worker overrides the image healthcheck.** It inherited the API's
+  `curl /api/v1/health`, which it can never pass since it serves no HTTP; it was
+  reporting `unhealthy` until replaced with `celery inspect ping`. The first
+  version of that replacement was also wrong: a 15s timeout against a check that
+  measures ~11s (of which ~4s is importing torch) produced intermittent false
+  failures. Timings were re-set from the measured cost — `interval 60s`,
+  `timeout 30s`, `start_period 90s` — and confirmed stable across several
+  cycles. The worker itself was never unhealthy; the check was.
+- **One shared image tag** (`terramind-backend:latest`) so the 2.13GB image is
+  built once rather than per service.
+- **Port 8000 collides** with the native backend from `scripts/start_stack.ps1`.
+  Run one or the other, or set `BACKEND_PORT`.
+
+### What this does and does not change
+
+✅ Raster analytics can now run, in Docker.
+🚧 The **host** environment is unchanged — running natively on Windows still
+hits Smart App Control and still returns 503. That degradation path remains
+correct and is still the right behaviour there.
+✅ Raster analytics are reachable **and proven correct** — see the NDVI
+fixture result below.
+
+---
+
+### Raster analytics proven end to end — ✅
+
+The gap left open above ("reachable but not proven correct") is now closed. A
+deterministic GeoTIFF was pushed through `POST /api/v1/analysis`.
+
+`_resolve_bands` maps an index's required bands **positionally**, so NDVI's
+`["NIR", "RED"]` means band 1 = NIR, band 2 = RED. The fixture was built to make
+the answer predictable in advance:
+
+| Region | NIR | RED | Expected NDVI |
+| --- | --- | --- | --- |
+| top half | 0.6 | 0.2 | `(0.6-0.2)/(0.6+0.2)` = **0.50** |
+| bottom half | 0.3 | 0.3 | `0/0.6` = **0.00** |
+
+100x100 float32, EPSG:4326, tiled+deflate, generated with rasterio inside the
+running container.
+
+**Result: HTTP 200, `processing_status: completed`,** and every statistic
+matches the prediction:
+
+| Statistic | Predicted | Returned |
+| --- | --- | --- |
+| min | 0.00 | `0.0` |
+| max | 0.50 | `0.5000000596` |
+| mean | 0.25 | `0.2500000298` |
+| median | 0.25 | `0.2500000298` |
+| variance | 0.0625 (= 0.25²) | `0.0625000075` |
+| std_dev | 0.25 | `0.25` |
+| valid_pixels | 10000 | `10000` |
+| nodata_pixels | 0 | `0` |
+
+Percentiles `p5=0.0, p25=0.0, p50=0.25, p75=0.5, p95=0.5` are exactly right for
+a 50/50 bimodal split, and a histogram (`frequencies` + `bin_edges`) was
+returned. Raster metadata round-tripped correctly: 100x100, EPSG:4326, 2 bands.
+The trailing `...0596` is float32 precision, not error.
+
+Error handling was checked too:
+
+```
+missing raster       -> 404
+ndbi (in the enum, not registered) -> 400
+```
+
+**This proves the analytics pipeline computes correct results**, not merely that
+the rasterio import resolves: raster open, band read, index computation and
+statistics all ran and agreed with hand-calculated values.
+
+Fixture removed afterwards; `/analysis` returns 404 for it again, and the
+repository was untouched throughout.
+
+✅ **NDWI is now verified** on its own GREEN/NIR fixture — see below. Note that
+NDVI and NDWI are numerically indistinguishable by construction under positional
+band mapping; that is proven rather than assumed.
+
+---
+
+### NDWI verified — ✅ (and a design limitation found)
+
+The earlier note said NDWI was untested because it would return values identical
+to NDVI. Investigating that properly turned it from a testing gap into a
+**documented property of the code**.
+
+#### Why NDVI and NDWI cannot be told apart by output
+
+```
+NDVI: required_bands ["NIR", "RED"]    compute (nir   - red)/(nir   + red)
+NDWI: required_bands ["GREEN", "NIR"]  compute (green - nir)/(green + nir)
+```
+
+`_resolve_bands` maps required bands **positionally** — first required band to
+raster band 1, second to band 2, ignoring the names entirely. Both indices are
+therefore `(band1 - band2)/(band1 + band2)`, and are **numerically identical on
+any 2-band raster**.
+
+This was proven, not assumed. The same raster through both indices:
+
+```
+ndwi on green/NIR raster -> min -0.6  max 0.6  mean 0.0  std 0.4898979962
+ndvi on green/NIR raster -> min -0.6  max 0.6  mean 0.0  std 0.4898979962
+```
+
+Byte-identical. No fixture can distinguish them, so "an independent NDWI test"
+in the numeric sense is not achievable by construction.
+
+⚠️ **The real risk this exposes:** band selection is positional and
+index-agnostic, so a raster whose band order does not match the requested index
+produces a confidently wrong answer with **no error**. Requesting NDWI on a
+NIR/RED raster returns plausible numbers that mean nothing. Band names in the
+raster are read for metadata but never used to select bands.
+
+#### What was verified instead
+
+NDWI was tested on a fixture authored with its own semantics — band 1 = GREEN,
+band 2 = NIR — with three regions chosen to make the answer predictable and to
+exercise **negative output**, which the NDVI fixture never did:
+
+| Region (rows) | GREEN | NIR | Expected NDWI |
+| --- | --- | --- | --- |
+| water, top third | 0.40 | 0.10 | `(0.4-0.1)/(0.4+0.1)` = **+0.60** |
+| neutral, middle | 0.25 | 0.25 | `0/0.5` = **0.00** |
+| vegetation, bottom | 0.10 | 0.40 | `(0.1-0.4)/(0.1+0.4)` = **-0.60** |
+
+120x120 float32, EPSG:4326. Result — HTTP 200, `completed`:
+
+| Statistic | Predicted | Returned |
+| --- | --- | --- |
+| min | -0.60 | `-0.6000000238` |
+| max | +0.60 | `0.6000000238` |
+| mean | 0.00 | `0.0` |
+| median | 0.00 | `0.0` |
+| variance | 0.24 | `0.2400000393` |
+| std_dev | 0.4899 (= √0.24) | `0.4898979962` |
+| valid_pixels | 14400 | `14400` |
+| nodata_pixels | 0 | `0` |
+
+Percentiles `p5=-0.6, p25=-0.6, p50=0.0, p75=0.6, p95=0.6` are exactly right for
+an even three-way split. Negative values and the `clip_output(-1, 1)` path are
+now exercised.
+
+#### Incidental finding — `area_of_interest` is silently ignored ⚠️
+
+Windowed reads were attempted to confirm spatial orientation (does "north" map
+to the water rows?). All four requests returned identical statistics over the
+full 14,400 pixels:
+
+```
+full raster        min -0.6  max 0.6  mean 0.0  pixels 14400
+NORTH third        min -0.6  max 0.6  mean 0.0  pixels 14400
+SOUTH third        min -0.6  max 0.6  mean 0.0  pixels 14400
+MIDDLE third       min -0.6  max 0.6  mean 0.0  pixels 14400
+```
+
+This is **not a bug** — `_resolve_window` is an explicit stub:
+
+```python
+# AOI-to-pixel-window conversion requires CRS projection which depends
+# on the open raster transform. For this milestone we use None (full
+# raster) and leave windowed AOI projection for the next phase.
+return None
+```
+
+The code is honest internally, but the **API is not**: `area_of_interest` is
+accepted, validated, and returns HTTP 200 with whole-raster statistics. A caller
+has no way to know their AOI was discarded. Either the field should be rejected
+until implemented, or the response should indicate the window actually used.
+
+As a consequence, spatial orientation of the raster read remains ⚠️ unverified —
+it cannot be checked until windowed reads exist.
+
+Both raster fixtures were removed afterwards; `/analysis` returns 404 for each,
+and the repository was untouched throughout.
+
+---
+
+## 18. Two silent-failure fixes before Phase 5 ✅
+
+Both gaps found in §17 shared the same failure mode: the API accepted a request,
+returned **HTTP 200**, and gave an answer that was quietly not what was asked
+for. That is the worst possible behaviour for a natural-language query layer,
+which would emit these parameters without a human checking the response.
+
+### 18.1 `area_of_interest` was silently discarded — now implemented ✅
+
+`_resolve_window` returned `None` unconditionally, so every AOI was validated
+and then thrown away; callers received whole-raster statistics with no signal.
+
+It now converts the bounding box to a pixel window using the raster's own affine
+transform (inverse of a north-up affine: `col = (x - c)/a`, `row = (y - f)/e`),
+clamps to the raster extent, and **raises rather than silently widening the read**
+for cases it cannot honour:
+
+| Case | Behaviour |
+| --- | --- |
+| Rotated/sheared transform (`b` or `d` non-zero) | 400 — not supported |
+| Zero pixel size | 400 — cannot resolve |
+| Raster CRS is not lon/lat | 400 — AOI reprojection not supported yet |
+| AOI does not intersect the raster | 400 — `"area_of_interest does not intersect the raster extent."` |
+
+The provider already honoured windows correctly (`read_band` builds a
+`rasterio.windows.Window`), so this was the only missing link.
+
+**Verified** against the 120x120 three-region NDWI fixture (4800 px per third):
+
+| Request | Expected | Returned |
+| --- | --- | --- |
+| full raster | mean 0.0, 14400 px | `mean 0.0, 14400` |
+| NORTH third (water) | uniform +0.6, 4800 px | `min 0.6 max 0.6 mean 0.6, 4800` |
+| MIDDLE third (neutral) | uniform 0.0, 4800 px | `min 0.0 max 0.0 mean 0.0, 4800` |
+| SOUTH third (vegetation) | uniform -0.6, 4800 px | `min -0.6 max -0.6 mean -0.6, 4800` |
+| AOI outside extent | error | `400` |
+
+Each third is internally uniform (min = max = mean), so the window is landing
+exactly on the intended rows, not merely reading fewer pixels.
+
+**This also closes the "raster spatial orientation unverified" item.** North maps
+to the water rows as authored, so the geotransform, the row ordering and the
+window arithmetic all agree.
+
+### 18.2 Positional band mapping could return confidently wrong values — now rejected ✅
+
+`_resolve_bands` mapped an index's required bands to raster bands **by position,
+ignoring names**. Since NDVI and NDWI are both `(band1 - band2)/(band1 + band2)`,
+requesting the wrong index for a raster produced plausible numbers and no error —
+nothing downstream could detect it.
+
+Two changes:
+
+1. **`COGRasterProvider` now surfaces band descriptions.** It previously
+   populated only `identifier`, `dtype` and `nodata_value`, discarding
+   `ds.descriptions`, so the analysis layer had no names to match on even when
+   the raster carried them.
+2. **`_resolve_bands` prefers labels when present.** If the raster labels its
+   bands, required bands are matched by name (case-insensitive, across `name`,
+   `common_name`, `description`). If a required band is absent, it **raises
+   instead of falling back to position**. Unlabelled rasters keep the previous
+   positional behaviour, so nothing that worked before breaks.
+
+**Verified:**
+
+```
+NDWI on GREEN/NIR raster  -> 200, correct statistics
+NDVI on GREEN/NIR raster  -> 400
+  "Raster labels its bands ['GREEN', 'NIR'], which does not provide ['RED']
+   required by this index. Refusing to fall back to positional order, which
+   would read the wrong bands and return plausible but incorrect values."
+```
+
+Before this change that same request returned **200 with statistics identical to
+NDWI's**.
+
+**Backwards compatibility checked:** a deliberately unlabelled 2-band raster
+(NIR 0.6 / RED 0.2) still resolves positionally and returns `mean 0.5` as
+before.
+
+### Files changed
+
+| File | Change |
+| --- | --- |
+| `src/services/analysis_service.py` | AOI → `PixelWindow` implemented; name-aware band resolution with positional fallback |
+| `src/analytics/providers/cog_provider.py` | Surface `ds.descriptions` as `BandInfo.name` / `.description` |
+
+All six quality gates pass. Fixtures removed afterwards.
+
+### Still not supported (now explicit rather than silent)
+
+⚠️ AOI **reprojection** — an AOI against a non-lon/lat raster is rejected with a
+clear message rather than applied unprojected.
+⚠️ Rotated/sheared rasters with an AOI — rejected.
+⚠️ Rasters that are unlabelled **and** in a non-standard band order remain
+undetectable; there is nothing to match against. Labelling bands is the only
+defence, and is now rewarded.
+
+---
+
 ## Current Baseline
 
 ### ✅ VERIFIED WORKING
@@ -531,13 +1018,19 @@ docker compose up -d db redis
 | No console errors | zero |
 | Quality gates | 6/6 pass |
 | Config reproducibility | `.env.example` loads through `Settings` |
+| Grey styling fallback | Verified with a temporary fixture (§16): uncategorised features render `rgb(54,54,54)`, neutral and distinct from the basemap |
+| Raster analytics (Docker) | NDVI over a deterministic fixture: mean 0.25, min 0.0, max 0.5, variance 0.0625 — all matching hand-calculated values (§17) |
+| NDWI (Docker) | Own GREEN/NIR fixture: min -0.6, max +0.6, mean 0.0, variance 0.24, std 0.4899 — matching hand-calculated values, incl. negative output |
+| `area_of_interest` windowing | Implemented (§18.1). Each third of a 3-region raster returns uniform values at exactly 4800 px; out-of-extent AOI returns 400 |
+| Raster spatial orientation | Verified via windowed reads — north maps to the authored water rows |
+| Band-name resolution | Implemented (§18.2). Mismatched index now returns 400 with an explanatory message instead of 200 with wrong values; unlabelled rasters still resolve positionally |
 
 ### 🚧 ENVIRONMENT BLOCKED
 
 | Item | Detail |
 | --- | --- |
 | rasterio native extension | Smart App Control blocks `_base.cp313-win_amd64.pyd`. Not a repo defect; SAC has no exclusion mechanism. Fix requires disabling SAC (irreversible), Docker/WSL, or a trusted build. |
-| Raster analytics | Unavailable while the above holds. Fails at 503, never at import. |
+| Raster analytics (native host only) | Unavailable on Windows while SAC holds; fails at 503, never at import. **Resolved in Docker — see §17.** |
 | Agent-side screenshots | The automated browser pane never composites here; visual proof depends on user-supplied screenshots. |
 
 ### ⚠️ NOT IMPLEMENTED YET / NOT VERIFIED
@@ -545,8 +1038,6 @@ docker compose up -d db redis
 | Item | Detail |
 | --- | --- |
 | Phase 5 — AI / NL query | Deliberately untouched. No LLM, parser, chat UI or agentic reasoning. |
-| Raster analytics behaviour | Only the failure path is proven; correct operation is untested here. |
-| Grey styling fallback | All 1,188 features carry a category, so the default branch is never taken. |
 | Dataset DELETE endpoint | Absent; `removeDataset` is a client-side no-op with a notification. |
 | Prettier gate | 146 files unformatted; not enforced in CI. |
 | `.env` files | gitignored, so each checkout must copy the examples. |

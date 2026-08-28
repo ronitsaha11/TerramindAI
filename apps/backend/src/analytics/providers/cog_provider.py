@@ -65,11 +65,20 @@ class COGRasterProvider(RasterProvider):
             if not ds.crs:
                 raise RasterMetadataError("Raster is missing CRS information")
 
+            # Band descriptions were previously discarded, which forced callers
+            # to rely on band ORDER alone. Surfacing them lets the analysis layer
+            # match bands by name and reject a raster whose bands do not match
+            # the requested index, instead of silently reading the wrong ones.
+            descriptions = ds.descriptions or ()
+
             bands = []
             for i in range(1, ds.count + 1):
+                label = descriptions[i - 1] if i - 1 < len(descriptions) else None
                 bands.append(
                     BandInfo(
                         identifier=BandIdentifier(str(i)),
+                        name=label,
+                        description=label,
                         dtype=str(ds.dtypes[i - 1]),
                         nodata_value=ds.nodatavals[i - 1] if ds.nodatavals else None,
                     )

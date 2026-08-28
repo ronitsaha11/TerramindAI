@@ -6,6 +6,7 @@ analysis pipeline. It performs NO mathematical calculations — those are
 delegated to the Spectral Index Engine and Statistics Engine respectively.
 """
 
+import math
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -95,7 +96,7 @@ class AnalysisService:
                 )
 
                 # Step 5: Read the required bands as raw NumPy arrays
-                window = self._resolve_window(request)
+                window = self._resolve_window(request, raster_metadata)
                 band_arrays = await self._read_bands(provider, bands_to_read, window)
 
                 # Step 6: Compute the spectral index
@@ -162,8 +163,30 @@ class AnalysisService:
         receives semantic keys and the provider receives numeric identifiers.
         """
         available_count = len(metadata.bands)
-        mapping: list[tuple[str, BandIdentifier]] = []
 
+        # Prefer the raster's own band labels. Mapping purely by position means
+        # a raster whose bands are ordered differently to the requested index
+        # returns confident but meaningless values, with no error - NDVI and
+        # NDWI are both (b1 - b2)/(b1 + b2), so nothing downstream can detect it.
+        labelled: dict[str, BandIdentifier] = {}
+        for band in metadata.bands:
+            for label in (band.name, band.common_name, band.description):
+                if label:
+                    labelled.setdefault(label.strip().upper(), band.identifier)
+
+        if labelled:
+            missing = [n for n in required_band_names if n.upper() not in labelled]
+            if missing:
+                raise AnalysisValidationError(
+                    f"Raster labels its bands {sorted(labelled)}, which does not "
+                    f"provide {missing} required by this index. Refusing to fall "
+                    f"back to positional order, which would read the wrong bands "
+                    f"and return plausible but incorrect values."
+                )
+            return [(n, labelled[n.upper()]) for n in required_band_names]
+
+        # Unlabelled raster: positional mapping is the only option available.
+        mapping: list[tuple[str, BandIdentifier]] = []
         for i, name in enumerate(required_band_names, start=1):
             if i > available_count:
                 raise AnalysisValidationError(
@@ -174,15 +197,65 @@ class AnalysisService:
 
         return mapping
 
-    def _resolve_window(self, request: AnalysisRequest) -> PixelWindow | None:
+    def _resolve_window(
+        self,
+        request: AnalysisRequest,
+        metadata: RasterMetadata,
+    ) -> PixelWindow | None:
         """
-        Convert an area-of-interest BoundingBox into a PixelWindow if provided.
+        Convert an area-of-interest BoundingBox into a PixelWindow.
         Returns None for full-raster reads.
+
+        Previously this returned None unconditionally, so an area_of_interest
+        was accepted, validated and then silently discarded - callers received
+        whole-raster statistics with no indication their AOI was ignored.
+        Unsupported cases now raise instead of quietly widening the read.
         """
-        # AOI-to-pixel-window conversion requires CRS projection which depends
-        # on the open raster transform. For this milestone we use None (full
-        # raster) and leave windowed AOI projection for the next phase.
-        return None
+        aoi = request.area_of_interest
+        if aoi is None:
+            return None
+
+        t = metadata.transform
+
+        if t.b or t.d:
+            raise AnalysisValidationError(
+                "area_of_interest is not supported for rotated or sheared "
+                "rasters; the affine transform has non-zero rotation terms."
+            )
+        if not t.a or not t.e:
+            raise AnalysisValidationError(
+                "Raster transform reports zero pixel size; cannot resolve "
+                "area_of_interest."
+            )
+
+        crs = (metadata.crs or "").strip().upper()
+        if crs not in {"EPSG:4326", "OGC:CRS84", "CRS84"}:
+            raise AnalysisValidationError(
+                f"area_of_interest is expressed in lon/lat but the raster CRS "
+                f"is '{metadata.crs}'. Reprojecting the AOI is not supported "
+                f"yet, and applying it unprojected would select the wrong pixels."
+            )
+
+        # Inverse of a north-up affine: col = (x - c)/a, row = (y - f)/e.
+        cols = sorted(((aoi.west - t.c) / t.a, (aoi.east - t.c) / t.a))
+        rows = sorted(((aoi.north - t.f) / t.e, (aoi.south - t.f) / t.e))
+
+        col_off = max(0, math.floor(cols[0]))
+        row_off = max(0, math.floor(rows[0]))
+        col_end = min(metadata.width, math.ceil(cols[1]))
+        row_end = min(metadata.height, math.ceil(rows[1]))
+
+        if col_end <= col_off or row_end <= row_off:
+            raise AnalysisValidationError(
+                "area_of_interest does not intersect the raster extent."
+            )
+
+        return PixelWindow(
+            col_off=col_off,
+            row_off=row_off,
+            width=col_end - col_off,
+            height=row_end - row_off,
+        )
 
     async def _read_bands(
         self,

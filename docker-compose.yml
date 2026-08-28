@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-terramind} -d ${POSTGRES_DB:-terramind_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   redis:
@@ -17,35 +22,81 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
-  # Placeholder for Backend service
-  # backend:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.backend
-  #   ...
+  # FastAPI. Runs rasterio inside Linux, where the host's Smart App Control
+  # policy does not apply, so raster analytics work here even when they cannot
+  # on a Windows host.
+  #
+  # Host ports 8000 and 5432 are also used when running the backend natively via
+  # scripts/start_stack.ps1 — run one or the other, or override BACKEND_PORT.
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    image: terramind-backend:latest
+    environment:
+      # Container-to-container hostnames, not localhost.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-terramind}:${POSTGRES_PASSWORD:-terramind_local}@db:5432/${POSTGRES_DB:-terramind_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      # JSON array — see apps/backend/.env.example. The Vite dev server runs on
+      # the host, so the browser origin is localhost, not a service name.
+      ALLOWED_ORIGINS: '["http://localhost:5273", "http://127.0.0.1:5273"]'
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
-  # Placeholder for Celery Worker service
-  # celery_worker:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.backend
-  #   command: celery -A src.async_processing.worker worker -l info
-  #   depends_on:
-  #     - redis
-  #     - db
-  #   ...
-  #     context: .
-  #     dockerfile: docker/Dockerfile.backend
-  #   ...
+  # Same image, different entrypoint. --pool=solo is deliberately absent: that
+  # is a Windows-only workaround for billiard permission errors and is not
+  # needed on Linux.
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    image: terramind-backend:latest
+    command: celery -A src.async_processing.worker worker -l info
+    # The image HEALTHCHECK curls /api/v1/health, which only the API serves.
+    # Replace it with a worker-appropriate check rather than inheriting one
+    # this service can never pass.
+    # Measured: this check takes ~11s, of which ~4s is importing the worker
+    # module (it pulls in torch). A 15s timeout left too little headroom and
+    # produced intermittent false failures, so the timings below are set
+    # against the measured cost rather than guessed.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A src.async_processing.worker inspect ping -t 3 | grep -q pong"]
+      interval: 60s
+      timeout: 30s
+      start_period: 90s
+      retries: 3
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-terramind}:${POSTGRES_PASSWORD:-terramind_local}@db:5432/${POSTGRES_DB:-terramind_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
-  # Placeholder for Frontend service
-  # frontend:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.frontend
-  #   ...
+  # The frontend is intentionally not containerised. It runs on the host via
+  # `pnpm dev --port 5273` (see scripts/start_stack.ps1) so hot-module reload
+  # works against the working tree.
 
 volumes:
   postgres_data:
