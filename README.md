@@ -33,7 +33,7 @@ the API, then the Vite dev server — verifying each layer before continuing.
 
 | Service  | URL                                      |
 | -------- | ---------------------------------------- |
-| Frontend | http://localhost:5173                    |
+| Frontend | http://localhost:5273                    |
 | API docs | http://127.0.0.1:8000/docs               |
 | Health   | http://127.0.0.1:8000/api/v1/health      |
 

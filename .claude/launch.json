@@ -4,8 +4,8 @@
     {
       "name": "terramind-frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "frontend", "dev"],
-      "port": 5173
+      "runtimeArgs": ["--dir", "frontend", "dev", "--port", "5273", "--strictPort"],
+      "port": 5273
     }
   ]
 }

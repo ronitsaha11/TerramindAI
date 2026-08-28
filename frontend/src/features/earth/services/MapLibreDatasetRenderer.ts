@@ -2,6 +2,8 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { useLayerStore } from '../stores/useLayerStore';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import type { DatasetStyle } from '../../../core/styles/style.types';
+import { compileDatasetStyle } from './style-expression-compiler';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -22,6 +24,10 @@ export class MapLibreDatasetRenderer {
   // Original GeoJSON per dataset, kept so spatial-query highlighting can use
   // exact source geometry instead of tile-clipped queryRenderedFeatures output.
   private datasetGeojson: Map<string, FeatureCollection<Geometry>> = new Map();
+
+  // Attribute-based style per dataset. Compiled to MapLibre expressions so
+  // the GPU evaluates rules, rather than styling each feature in JS.
+  private datasetStyles: Map<string, DatasetStyle> = new Map();
   
   // Track the current active project to clean up when it changes
   private currentProjectId: string | null = null;
@@ -144,6 +150,10 @@ export class MapLibreDatasetRenderer {
       this.loadedDatasets.add(datasetId);
       this.datasetGeojson.set(datasetId, geojson);
 
+      // Re-apply any style chosen before this dataset was toggled back on.
+      const existingStyle = this.datasetStyles.get(datasetId);
+      if (existingStyle) this.applyStyleToLayers(datasetId, existingStyle);
+
       // Fit bounds if the dataset has an extent
       // Note: useDatasetManager holds the API response, but since we are independent here,
       // we can optionally calculate bounds from the GeoJSON or assume a global store.
@@ -218,6 +228,56 @@ export class MapLibreDatasetRenderer {
       }
     } catch {
       // Ignore
+    }
+  }
+
+  // ─── Attribute-based Styling ────────────
+
+  /** Features of a loaded dataset, for deriving categories to style by. */
+  getDatasetFeatures(datasetId: string): Feature<Geometry>[] {
+    return this.datasetGeojson.get(datasetId)?.features ?? [];
+  }
+
+  /**
+   * Apply (or clear, with null) an attribute-based style for a dataset.
+   * The style is remembered so toggling the dataset off and on keeps it.
+   */
+  setDatasetStyle(datasetId: string, style: DatasetStyle | null) {
+    if (style) {
+      this.datasetStyles.set(datasetId, style);
+    } else {
+      this.datasetStyles.delete(datasetId);
+    }
+    this.applyStyleToLayers(datasetId, style);
+  }
+
+  /**
+   * Push compiled paint onto the live layers. Passing null restores the
+   * renderer's default paint, which compileDatasetStyle emits for an empty
+   * style, so clearing needs no separate code path.
+   */
+  private applyStyleToLayers(datasetId: string, style: DatasetStyle | null) {
+    if (!this.map) return;
+
+    const paint = compileDatasetStyle(
+      style ?? { defaultStyle: {}, rules: [] }
+    );
+
+    const fill = `dataset-fill-${datasetId}`;
+    const line = `dataset-line-${datasetId}`;
+    const circle = `dataset-circle-${datasetId}`;
+
+    if (this.map.getLayer(fill)) {
+      this.map.setPaintProperty(fill, 'fill-color', paint.fillColor);
+      this.map.setPaintProperty(fill, 'fill-opacity', paint.fillOpacity);
+    }
+    if (this.map.getLayer(line)) {
+      this.map.setPaintProperty(line, 'line-color', paint.lineColor);
+      this.map.setPaintProperty(line, 'line-width', paint.lineWidth);
+    }
+    if (this.map.getLayer(circle)) {
+      this.map.setPaintProperty(circle, 'circle-color', paint.circleColor);
+      this.map.setPaintProperty(circle, 'circle-radius', paint.circleRadius);
     }
   }
 

@@ -9,10 +9,12 @@ param([switch]$Containers)
 
 $Root = Split-Path -Parent $PSScriptRoot
 
+# Only ever touches processes whose command line points at THIS repository.
+# Matching on '*vite*' alone would kill unrelated dev servers on this machine.
 function Stop-Matching {
     param([string]$ProcessName, [string]$Pattern, [string]$Label)
     $procs = Get-CimInstance Win32_Process -Filter "Name='$ProcessName'" |
-             Where-Object { $_.CommandLine -like $Pattern }
+             Where-Object { $_.CommandLine -like $Pattern -and $_.CommandLine -like "*TerramindAI*" }
     if (-not $procs) { Write-Host "  $Label - nothing running"; return }
     foreach ($p in $procs) {
         Stop-Process -Id $p.ProcessId -Force
