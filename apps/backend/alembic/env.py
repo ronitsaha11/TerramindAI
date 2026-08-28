@@ -44,8 +44,27 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and reflected and name not in target_metadata.tables:
+        return False
+    # Don't drop indexes from excluded tables
+    if (
+        type_ == "index"
+        and reflected
+        and getattr(object, "table", None) is not None
+        and object.table.name not in target_metadata.tables
+    ):
+        return False
+    return True
+
+
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

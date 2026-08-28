@@ -1,5 +1,7 @@
 from src.db.models.audit_log import AuditLog
 from src.db.models.base import Base
+from src.db.models.dataset import Dataset
+from src.db.models.dataset_feature import DatasetFeature
 from src.db.models.enums import (
     AuditResourceType,
     JobStatus,
@@ -30,6 +32,8 @@ __all__ = [
     "AuditResourceType",
     "User",
     "AuditLog",
+    "Dataset",
+    "DatasetFeature",
     "Project",
     "ProjectMember",
     "Region",
