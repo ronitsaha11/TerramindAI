@@ -16,5 +16,11 @@ app.conf.update(
     task_ignore_result=False,
 )
 
-# Autodiscover tasks from registered apps/packages
-app.autodiscover_tasks(["src.async_processing"])
+# These task modules are imported purely for their side effect: importing them
+# registers their tasks on the `app` above. They must come after `app` exists
+# (the task modules import it), and nothing references them by name - so E402
+# and F401 are both expected. Do NOT let `ruff --fix` remove these; dropping
+# them makes FastAPI's enqueue fail with "task not registered" even though the
+# worker itself starts fine.
+import src.async_processing.tasks.ai_tasks  # noqa: E402, F401
+import src.async_processing.tasks.geospatial_tasks  # noqa: E402, F401
