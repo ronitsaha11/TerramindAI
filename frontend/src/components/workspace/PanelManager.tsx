@@ -9,10 +9,12 @@ import {
   InspectorPanel,
   SettingsPanel
 } from './panels'
+import { ProjectsPanel } from '@/features/projects/ProjectsPanel'
 import { type ComponentType } from 'react'
 import { AnimatePresence } from 'framer-motion'
 
 const panelRegistry: Record<string, ComponentType> = {
+  projects: ProjectsPanel,
   layers: LayersPanel,
   datasets: DatasetsPanel,
   weather: WeatherPanel,

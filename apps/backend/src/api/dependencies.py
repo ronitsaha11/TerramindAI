@@ -30,6 +30,7 @@ from src.providers.tiles.base import TileProvider
 from src.providers.tiles.titiler import TiTilerProvider
 from src.services.analysis_service import AnalysisService
 from src.services.catalog_service import CatalogService
+from src.services.dataset_service import DatasetService
 from src.services.project_service import ProjectService
 from src.services.region_service import RegionService
 from src.services.tile_service import TileService
@@ -44,6 +45,11 @@ async def get_uow() -> AsyncGenerator[UnitOfWork, None]:
 def get_project_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> ProjectService:
     """Dependency provider for ProjectService."""
     return ProjectService(uow)
+
+
+def get_dataset_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> DatasetService:
+    """Dependency provider for DatasetService."""
+    return DatasetService(uow)
 
 
 def get_region_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> RegionService:

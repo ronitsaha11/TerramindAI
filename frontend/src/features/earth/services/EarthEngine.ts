@@ -1,35 +1,27 @@
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { useMapStore } from '../stores/useMapStore'
 import { useCursorStore } from '../stores/useCursorStore'
+import { useWorkspaceStatusStore } from '@/stores/workspace/useWorkspaceStatusStore'
+import { useWorkspaceStore } from '@/stores/workspace/useWorkspaceStore'
+import { useEnvironmentStore } from '../stores/useEnvironmentStore'
 import { CameraController } from './CameraController'
 import { CoordinateService } from './CoordinateService'
 import { ProjectionService } from './ProjectionService'
 import { DeckOverlayManager } from './DeckOverlayManager'
 import { LayerManager } from './LayerManager'
 import { FPSTracker } from './FPSTracker'
+import { InteractionManager } from '../../../core/interactions/interaction-manager'
+import { DeckInteractionAdapter } from '../adapters/deck-interaction-adapter'
 import { InteractionBridge } from '../stores/interaction-bridge'
+import { StyleEvaluator } from '../../../core/styles/style-evaluator'
 import { DatasetLayerFactory } from '../../../core/datasets/rendering/dataset-layer.factory'
+import { SpatialEngine } from '../../../core/spatial/spatial.engine'
 import { DatasetRegistry } from '../../../core/datasets/registry/dataset-registry'
 import { ViewportQueryController } from './viewport-query-controller'
 import { SpatialBridge } from '../../spatial/stores/spatial-bridge'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
-import { SimulationClock } from '../../../core/simulation'
-import { SimulationBridge } from '../../simulation/stores/simulation-bridge'
-import { EarthReferenceFrame, EarthEphemeris } from '../../../core/planet'
-import { CameraEngine } from '../../../core/camera'
-import { CameraBridge } from '../../camera/stores/camera-bridge'
-import { RenderingCoordinator } from '../../rendering'
-import { RenderingBridge } from '../../rendering/stores/rendering-bridge'
-import { StreamingEngine } from '../../streaming'
-import { TerrainElevationEngine } from '../../terrain'
-import { OceanSystem } from '../../ocean'
-import { AtmosphereEngine } from '../../environment'
-import { CloudEngine } from '../../clouds'
-import { NightLightsEngine } from '../../nightlights'
-import { SpaceEngine } from '../../space'
-import { ChoreographyEngine } from '../../choreography'
-import { PerformanceEngine } from '../../performance'
+import { MapLibreDatasetRenderer } from './MapLibreDatasetRenderer'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -51,27 +43,9 @@ export class EarthEngine {
   private _datasetRegistry: DatasetRegistry | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
-  private _simulationClock: SimulationClock | null = null
-  private _simulationBridge: SimulationBridge | null = null
-  private _earthReferenceFrame: EarthReferenceFrame | null = null
-  private _earthEphemeris: EarthEphemeris | null = null
-  private _cameraEngine: CameraEngine | null = null
-  private _cameraBridge: CameraBridge | null = null
-  private _renderingCoordinator: RenderingCoordinator | null = null
-  private _renderingBridge: RenderingBridge | null = null
-  private _streamingEngine: StreamingEngine | null = null
-  private _terrainEngine: TerrainElevationEngine | null = null
-  private _oceanSystem: OceanSystem | null = null
-  private _atmosphereEngine: AtmosphereEngine | null = null
-  private _cloudEngine: CloudEngine | null = null
-  private _nightLightsEngine: NightLightsEngine | null = null
-  private _spaceEngine: SpaceEngine | null = null
-  private _choreographyEngine: ChoreographyEngine | null = null
-  private _performanceEngine: PerformanceEngine | null = null
+  private _maplibreDatasetRenderer: MapLibreDatasetRenderer | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
-  private _animationFrameId: number | null = null
-  private _lastFrameTime: number | null = null
 
   static getInstance(): EarthEngine {
     if (!EarthEngine.instance) {
@@ -113,95 +87,40 @@ export class EarthEngine {
       console.warn(`[EarthEngine] Cannot initialize — engine is in "${this._state}" state.`)
       return
     }
+    if (!this._hostElement) {
+      console.error('[EarthEngine] Cannot initialize — no host element attached.')
+      return
+    }
 
     this.setState('mounting')
 
     try {
+      const map = new MapLibreMap({
+        container: this._hostElement,
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [0, 20],
+        zoom: 2,
+        pitch: 0,
+        bearing: 0,
+        attributionControl: {},
+      })
+
+      this._map = map
+
+      const camera = new CameraController()
+      const coordinates = new CoordinateService()
+      const projection = new ProjectionService()
       const fpsTracker = new FPSTracker()
-      
-      const cameraEngine = new CameraEngine()
-      const cameraBridge = new CameraBridge(cameraEngine)
-      cameraBridge.initialize()
-      
-      const simulationClock = new SimulationClock()
-      const simulationBridge = new SimulationBridge(simulationClock)
-      simulationBridge.initialize()
+      const environmentController = new EnvironmentController()
+      const maplibreDatasetRenderer = new MapLibreDatasetRenderer()
 
-      const earthReferenceFrame = new EarthReferenceFrame()
-      const earthEphemeris = new EarthEphemeris(simulationClock)
-
-      const renderingCoordinator = new RenderingCoordinator(cameraEngine, earthEphemeris)
-      const renderingBridge = new RenderingBridge(renderingCoordinator)
-      renderingBridge.initialize()
-      
-      const streamingEngine = new StreamingEngine(cameraEngine)
-      streamingEngine.initialize()
-
-      const terrainEngine = new TerrainElevationEngine(streamingEngine)
-      terrainEngine.initialize()
-
-      const oceanSystem = new OceanSystem()
-
-      const atmosphereEngine = new AtmosphereEngine()
-      atmosphereEngine.initialize()
-
-      const cloudEngine = new CloudEngine(simulationClock)
-      cloudEngine.initialize()
-
-      const nightLightsEngine = new NightLightsEngine(atmosphereEngine)
-      nightLightsEngine.initialize()
-
-      const spaceEngine = new SpaceEngine(earthEphemeris)
-      spaceEngine.initialize()
-
-      const choreographyEngine = new ChoreographyEngine(cameraEngine, simulationClock)
-
-      const performanceEngine = new PerformanceEngine()
-      performanceEngine.initialize()
-
+      this._camera = camera
+      this._projection = projection
+      this._coordinates = coordinates
       this._fpsTracker = fpsTracker
-      this._simulationClock = simulationClock
-      this._simulationBridge = simulationBridge
-      this._earthReferenceFrame = earthReferenceFrame
-      this._earthEphemeris = earthEphemeris
-      this._cameraEngine = cameraEngine
-      this._cameraBridge = cameraBridge
-      this._renderingCoordinator = renderingCoordinator
-      this._renderingBridge = renderingBridge
-      this._streamingEngine = streamingEngine
-      this._terrainEngine = terrainEngine
-      this._oceanSystem = oceanSystem
-      this._atmosphereEngine = atmosphereEngine
-      this._cloudEngine = cloudEngine
-      this._nightLightsEngine = nightLightsEngine
-      this._spaceEngine = spaceEngine
-      this._choreographyEngine = choreographyEngine
-      this._performanceEngine = performanceEngine
+      this._environmentController = environmentController
+      this._maplibreDatasetRenderer = maplibreDatasetRenderer
 
-      // Start the simulation loop
-      this._lastFrameTime = performance.now()
-      const loop = (currentTime: number) => {
-        if (this._state === 'ready') {
-          const currentTime = performance.now();
-          const lastTime = this._lastFrameTime ?? currentTime;
-          const realWorldDeltaMs = currentTime - lastTime;
-          
-          this._performanceEngine?.tick(realWorldDeltaMs);
-          this._choreographyEngine?.tick(realWorldDeltaMs);
-          this._simulationClock?.tick(realWorldDeltaMs);
-          this._cloudEngine?.update();
-          this._spaceEngine?.update();
-        }
-        this._lastFrameTime = currentTime;
-        
-        this._animationFrameId = requestAnimationFrame(loop);
-      }
-      this._animationFrameId = requestAnimationFrame(loop);
-
-      this.setState('ready')
-
-      // Legacy maplibre initialization skipped
-      /*
       map.once('load', () => {
         if (this._state !== 'mounting') return
 
@@ -209,6 +128,8 @@ export class EarthEngine {
         camera.bind(map)
         projection.bind(map)
         camera.syncFromRenderer()
+
+        maplibreDatasetRenderer.initialize(map)
 
         // ─── Camera events ───────────────────────────
         const syncEvents = ['move', 'zoom', 'rotate', 'pitch'] as const
@@ -300,26 +221,15 @@ export class EarthEngine {
           environmentController.sync(state)
         })
 
-        // ─── Simulation Loop ─────────────────────────
-        this._lastFrameTime = performance.now()
-        const loop = (currentTime: number) => {
-          if (this._state === 'destroyed') return;
-          
-          if (this._lastFrameTime !== null) {
-            const realWorldDeltaMs = currentTime - this._lastFrameTime;
-            this._simulationClock?.tick(realWorldDeltaMs);
-          }
-          this._lastFrameTime = currentTime;
-          
-          this._animationFrameId = requestAnimationFrame(loop);
-        }
-        this._animationFrameId = requestAnimationFrame(loop);
-
         this.setState('ready')
       })
 
+      map.on('error', (e) => {
+        console.error('[EarthEngine] MapLibre error:', e.error)
+        if (this._state === 'ready' || this._state === 'mounting') {
+          this.setState('error')
+        }
       })
-      */
     } catch (err) {
       console.error('[EarthEngine] Failed to create MapLibre map:', err)
       this.setState('error')
@@ -347,6 +257,14 @@ export class EarthEngine {
   // ─────────────────────────────────────────────
 
   /** 
+   * Expose the underlying MapLibre map instance for direct interaction.
+   * Use sparingly — prefer higher-level APIs where possible.
+   */
+  getMap(): MapLibreMap | null {
+    return this._map
+  }
+
+  /** 
    * Expose the LayerManager for system-level orchestration only.
    * React components must call this through services, never directly.
    */
@@ -366,60 +284,8 @@ export class EarthEngine {
     return this._datasetRegistry
   }
 
-  getEarthReferenceFrame(): EarthReferenceFrame | null {
-    return this._earthReferenceFrame
-  }
-
-  getEarthEphemeris(): EarthEphemeris | null {
-    return this._earthEphemeris
-  }
-
-  getCameraEngine(): CameraEngine | null {
-    return this._cameraEngine
-  }
-
-  getSimulationClock(): SimulationClock | null {
-    return this._simulationClock
-  }
-
-  getRenderingCoordinator(): RenderingCoordinator | null {
-    return this._renderingCoordinator
-  }
-
-  getStreamingEngine(): StreamingEngine | null {
-    return this._streamingEngine
-  }
-
-  getTerrainEngine(): TerrainElevationEngine | null {
-    return this._terrainEngine
-  }
-
-  getOceanSystem(): OceanSystem | null {
-    return this._oceanSystem
-  }
-
-  getAtmosphereEngine(): AtmosphereEngine | null {
-    return this._atmosphereEngine
-  }
-
-  getCloudEngine(): CloudEngine | null {
-    return this._cloudEngine
-  }
-
-  getNightLightsEngine(): NightLightsEngine | null {
-    return this._nightLightsEngine
-  }
-
-  getSpaceEngine(): SpaceEngine | null {
-    return this._spaceEngine
-  }
-
-  getChoreographyEngine(): ChoreographyEngine | null {
-    return this._choreographyEngine
-  }
-
-  getPerformanceEngine(): PerformanceEngine | null {
-    return this._performanceEngine
+  getMapLibreDatasetRenderer(): MapLibreDatasetRenderer | null {
+    return this._maplibreDatasetRenderer
   }
 
   // ─────────────────────────────────────────────
@@ -446,50 +312,10 @@ export class EarthEngine {
       this._unsubEnvironment = null
     }
 
-    if (this._animationFrameId !== null) {
-      cancelAnimationFrame(this._animationFrameId)
-      this._animationFrameId = null
+    if (this._maplibreDatasetRenderer) {
+      this._maplibreDatasetRenderer.destroy()
+      this._maplibreDatasetRenderer = null
     }
-
-    this._simulationBridge?.destroy()
-    this._simulationBridge = null
-    this._simulationClock = null
-
-    this._earthEphemeris?.destroy()
-    this._earthEphemeris = null
-    this._earthReferenceFrame = null
-
-    this._cameraBridge?.destroy()
-    this._cameraBridge = null
-    this._cameraEngine = null
-
-    this._renderingBridge?.destroy()
-    this._renderingBridge = null
-    this._renderingCoordinator?.destroy()
-    this._renderingCoordinator = null
-    
-    this._streamingEngine?.destroy()
-    this._streamingEngine = null
-
-    this._terrainEngine?.destroy()
-    this._terrainEngine = null
-
-    this._oceanSystem = null
-
-    this._atmosphereEngine?.destroy()
-    this._atmosphereEngine = null
-
-    this._cloudEngine = null
-
-    this._nightLightsEngine?.destroy()
-    this._nightLightsEngine = null
-
-    this._spaceEngine?.destroy()
-    this._spaceEngine = null
-
-    this._choreographyEngine = null
-
-    this._performanceEngine = null
 
     this._fpsTracker?.stop()
     this._fpsTracker = null

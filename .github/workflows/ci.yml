@@ -2,24 +2,40 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-  frontend-lint:
+  # Builds the active frontend at the repository root. `apps/frontend` is a
+  # dead Next.js scaffold and is deliberately not built.
+  frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/frontend
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+
+      # pnpm must be installed before setup-node so its cache backend resolves.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
-      - run: npm run lint
-      - run: npx prettier --check .
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm type-check
+      - run: pnpm build
+
+      # NOTE: `prettier --check .` is intentionally not run yet. The tree has
+      # 146 unformatted files; enabling this gate needs a one-time
+      # `pnpm format` normalisation commit first.
 
   backend-lint-test:
     runs-on: ubuntu-latest
@@ -28,10 +44,19 @@ jobs:
         working-directory: apps/backend
     steps:
       - uses: actions/checkout@v4
+      # 3.13 matches the local venv and [tool.mypy] python_version; requirements.txt
+      # is a freeze taken from 3.13, so pinning here avoids wheel mismatches.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/backend/requirements-dev.txt
+
+      # Installs the full runtime on purpose: mypy runs with
+      # warn_unused_ignores, so the FastAPI/Starlette stubs must be present or
+      # the `# type: ignore` comments in main.py report as unused.
       - run: pip install -r requirements-dev.txt
+
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy src/

@@ -1,0 +1,47 @@
+import { GeoJsonLayer } from '@deck.gl/layers';
+import type { OceanSystem } from '../../ocean/OceanSystem';
+
+export class DeckGLOceanBridge {
+  private oceanSystem: OceanSystem;
+
+  constructor(oceanSystem: OceanSystem) {
+    this.oceanSystem = oceanSystem;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public createOceanLayer(): any {
+    // A simple global polygon that wraps the GlobeView
+    // Deck.gl's GlobeView will automatically wrap this around the sphere.
+    const globalPolygon = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-180, -90],
+                [-180, 90],
+                [180, 90],
+                [180, -90],
+                [-180, -90]
+              ]
+            ]
+          }
+        }
+      ]
+    };
+
+    return new GeoJsonLayer({
+      id: 'ocean-layer',
+      data: globalPolygon,
+      filled: true,
+      stroked: false,
+      getFillColor: [10, 30, 60, 255], // Deep ocean blue
+      // Push back in depth to ensure it renders underneath terrain
+      getPolygonOffset: () => [0, 100],
+    });
+  }
+}

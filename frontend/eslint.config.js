@@ -23,6 +23,16 @@ export default tseslint.config(
         'off',
         { allowConstantExport: true },
       ],
+      // Match the TypeScript compiler, which already treats a leading
+      // underscore as "intentionally unused".
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   }
 )

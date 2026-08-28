@@ -1,4 +1,5 @@
 import { 
+  Folder,
   Layers, 
   Database,
   CloudRain, 
@@ -17,6 +18,7 @@ export function LeftToolRail() {
   const activePanels = useWorkspaceStore(state => state.activePanels)
 
   const tools = [
+    { id: 'projects', icon: Folder, label: 'Projects' },
     { id: 'layers', icon: Layers, label: 'Layers' },
     { id: 'datasets', icon: Database, label: 'Datasets' },
     { id: 'weather', icon: CloudRain, label: 'Weather' },

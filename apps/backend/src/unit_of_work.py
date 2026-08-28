@@ -3,6 +3,10 @@ from types import TracebackType
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.repositories.audit_log_repository import AuditLogRepository
+from src.repositories.dataset_repository import (
+    DatasetFeatureRepository,
+    DatasetRepository,
+)
 from src.repositories.job_repository import JobRepository
 from src.repositories.prediction_repository import PredictionRepository
 from src.repositories.project_repository import ProjectRepository
@@ -26,6 +30,8 @@ class UnitOfWork:
         # Repositories share the exact same session, ensuring transaction boundaries.
         self.users = UserRepository(self.session)
         self.projects = ProjectRepository(self.session)
+        self.datasets = DatasetRepository(self.session)
+        self.dataset_features = DatasetFeatureRepository(self.session)
         self.regions = RegionRepository(self.session)
         self.jobs = JobRepository(self.session)
         self.predictions = PredictionRepository(self.session)

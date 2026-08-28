@@ -11,6 +11,7 @@ from src.db.models.enums import ProjectStatus
 from src.db.models.mixins import BaseEntity
 
 if TYPE_CHECKING:
+    from src.db.models.dataset import Dataset
     from src.db.models.job import Job
     from src.db.models.project_member import ProjectMember
     from src.db.models.region import Region
@@ -67,6 +68,13 @@ class Project(BaseEntity, Base):
 
     reports: Mapped[list["Report"]] = relationship(
         "Report",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    datasets: Mapped[list["Dataset"]] = relationship(
+        "Dataset",
         back_populates="project",
         cascade="all, delete-orphan",
         passive_deletes=True,
