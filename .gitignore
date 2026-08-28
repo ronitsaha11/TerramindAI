@@ -32,3 +32,25 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Service logs and generated output (several of these are still tracked from an
+# earlier commit - run `git rm --cached <file>` once to stop them churning)
+*.log
+*.err
+apps/backend/freeze.txt
+apps/backend/mypy_out.txt
+apps/backend/dummy.txt
+frontend/browser_logs.txt
+frontend/network_logs.txt
+
+# Ad-hoc developer scratch scripts, kept locally but not part of the codebase
+apps/backend/check_schema.py
+apps/backend/check_tables.py
+apps/backend/dump_geospatial.py
+apps/backend/print_shape.py
+apps/backend/test_api.py
+apps/backend/test_insert.py
+apps/backend/test_payloads.py
+apps/backend/test_data.geojson
+frontend/capture.cjs
+frontend/capture_logs.cjs
