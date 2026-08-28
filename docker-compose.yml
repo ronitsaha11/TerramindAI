@@ -47,6 +47,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       SECRET_KEY: ${SECRET_KEY:-change-me}
+      # Optional: unset means /query/natural returns 503, nothing else changes.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # JSON array — see apps/backend/.env.example. The Vite dev server runs on
       # the host, so the browser origin is localhost, not a service name.
       ALLOWED_ORIGINS: '["http://localhost:5273", "http://127.0.0.1:5273"]'
@@ -87,6 +89,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       SECRET_KEY: ${SECRET_KEY:-change-me}
+      # Optional: unset means /query/natural returns 503, nothing else changes.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = ""
 
+    # Claude API - natural-language spatial queries
+    # Server-side only. This key is never sent to the frontend, and the model is
+    # only ever asked to interpret intent: it receives no feature data, no
+    # identifiers, and issues no queries of its own. Left unset, /query/natural
+    # returns 503 and every other endpoint keeps working.
+    ANTHROPIC_API_KEY: str = ""
+    NLQ_MODEL: str = "claude-opus-5"
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

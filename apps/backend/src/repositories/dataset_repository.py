@@ -234,3 +234,75 @@ class DatasetFeatureRepository(BaseRepository[DatasetFeature]):
                 }
             )
         return features
+
+    async def find_by_name(
+        self,
+        project_id: uuid.UUID,
+        name_query: str,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Return features across a project whose name matches *name_query*.
+
+        This is the bridge between a place name and a feature the spatial
+        primitives can actually take: they address rows by UUID, while natural
+        language only ever supplies a name. Matching is a case-insensitive
+        substring so "Lalbagh" finds "Lalbagh Botanical Gardens", and the caller
+        is handed every match rather than a best guess.
+
+        Shorter names sort first, so an exact name outranks one that merely
+        contains it.
+        """
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT
+                f.id                                    AS feature_id,
+                f.properties->>'name'                   AS feature_name,
+                f.dataset_id                            AS dataset_id,
+                d.name                                  AS dataset_name,
+                f.properties->>'category'               AS category,
+                ST_GeometryType(f.geometry)             AS geometry_type,
+                ST_X(ST_Centroid(f.geometry))           AS lon,
+                ST_Y(ST_Centroid(f.geometry))           AS lat
+            FROM dataset_features f
+            JOIN datasets d ON d.id = f.dataset_id
+            WHERE d.project_id = :project_id
+              AND f.properties->>'name' ILIKE :pattern
+            ORDER BY length(f.properties->>'name'), f.properties->>'name'
+            LIMIT :limit
+        """)
+        result = await self.session.execute(
+            query,
+            {
+                "project_id": project_id,
+                "pattern": f"%{name_query}%",
+                "limit": limit,
+            },
+        )
+        return [dict(row._mapping) for row in result]
+
+    async def summarise_project(self, project_id: uuid.UUID) -> list[dict]:
+        """Return each dataset in a project with its distinct category values.
+
+        This is the vocabulary handed to the language model. It is names and
+        counts only - deliberately no geometry, coordinates or identifiers.
+        """
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT
+                d.name AS dataset_name,
+                COUNT(f.id) AS feature_count,
+                COALESCE(
+                    ARRAY_AGG(DISTINCT f.properties->>'category')
+                        FILTER (WHERE f.properties->>'category' IS NOT NULL),
+                    '{}'
+                ) AS categories
+            FROM datasets d
+            LEFT JOIN dataset_features f ON f.dataset_id = d.id
+            WHERE d.project_id = :project_id
+            GROUP BY d.id, d.name
+            ORDER BY d.name
+        """)
+        result = await self.session.execute(query, {"project_id": project_id})
+        return [dict(row._mapping) for row in result]
