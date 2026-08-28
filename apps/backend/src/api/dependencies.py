@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 
 from src.ai.loader import AIModelLoader
 from src.ai.manager import ModelManager
@@ -15,14 +15,13 @@ from src.ai.service import AIInferenceService
 from src.analytics.engine import AnalyticsEngine
 from src.analytics.indices import default_registry as default_index_registry
 from src.analytics.providers.base import RasterProvider
-from src.analytics.providers.cog_provider import COGRasterProvider
 from src.analytics.statistics import default_engine as default_statistics_engine
 from src.async_processing.service import JobService
 from src.db.session import AsyncSessionLocal
 from src.geospatial.analytics import SpatialAnalyticsEngine
 from src.geospatial.geojson_exporter import GeoJSONExporter
 from src.geospatial.geometry_processor import GeometryProcessor
-from src.geospatial.polygonizer import RasterPolygonizer
+from src.geospatial.interfaces import PolygonizerProtocol
 from src.geospatial.service import GeospatialService
 from src.providers.catalog.base import CatalogProvider
 from src.providers.catalog.earth_search import EarthSearchProvider
@@ -35,6 +34,22 @@ from src.services.project_service import ProjectService
 from src.services.region_service import RegionService
 from src.services.tile_service import TileService
 from src.unit_of_work import UnitOfWork
+
+
+# rasterio ships a compiled GDAL extension. Importing it at module scope made
+# every endpoint - including the vector dataset and spatial-query routes, which
+# never touch raster data - unimportable when that binary cannot load. The two
+# raster providers below therefore import it on first use instead, so a missing
+# or blocked rasterio degrades raster analytics only, rather than the whole API.
+def _raster_dependency_unavailable(exc: Exception) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            "Raster analytics are unavailable because the 'rasterio' native "
+            f"extension could not be loaded: {exc}. Vector dataset and spatial "
+            "query endpoints are unaffected."
+        ),
+    )
 
 
 async def get_uow() -> AsyncGenerator[UnitOfWork, None]:
@@ -78,7 +93,14 @@ def get_tile_service(
 
 
 def get_raster_provider() -> RasterProvider:
-    """Dependency provider for RasterProvider — returns a COGRasterProvider."""
+    """Dependency provider for RasterProvider — returns a COGRasterProvider.
+
+    Imported lazily: see _raster_dependency_unavailable.
+    """
+    try:
+        from src.analytics.providers.cog_provider import COGRasterProvider
+    except ImportError as exc:
+        raise _raster_dependency_unavailable(exc) from exc
     return COGRasterProvider()
 
 
@@ -141,7 +163,12 @@ def get_ai_inference_service(
     )
 
 
-def get_polygonizer() -> RasterPolygonizer:
+def get_polygonizer() -> PolygonizerProtocol:
+    """Imported lazily: see _raster_dependency_unavailable."""
+    try:
+        from src.geospatial.polygonizer import RasterPolygonizer
+    except ImportError as exc:
+        raise _raster_dependency_unavailable(exc) from exc
     return RasterPolygonizer()
 
 
@@ -158,7 +185,7 @@ def get_geojson_exporter() -> GeoJSONExporter:
 
 
 def get_geospatial_service(
-    polygonizer: Annotated[RasterPolygonizer, Depends(get_polygonizer)],
+    polygonizer: Annotated[PolygonizerProtocol, Depends(get_polygonizer)],
     geometry_processor: Annotated[GeometryProcessor, Depends(get_geometry_processor)],
     analytics_engine: Annotated[
         SpatialAnalyticsEngine, Depends(get_spatial_analytics_engine)

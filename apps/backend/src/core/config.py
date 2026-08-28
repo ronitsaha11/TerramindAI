@@ -25,7 +25,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    # ALLOWED_ORIGINS is the canonical variable controlling CORS; it is applied
+    # by CORSMiddleware in src/main.py. Being list[str], pydantic-settings parses
+    # it as JSON, so .env must supply a JSON array - a comma-separated string is
+    # rejected. See apps/backend/.env.example.
+    # The default targets the Vite dev server (see scripts/start_stack.ps1);
+    # localhost and 127.0.0.1 are distinct origins to the browser.
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:5273",
+        "http://127.0.0.1:5273",
+    ]
 
     # Celery & Async Processing
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
