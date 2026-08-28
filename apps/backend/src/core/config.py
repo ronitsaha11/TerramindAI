@@ -8,7 +8,13 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str = ""
+    # Points at the local docker-compose Postgres (see .env.example and
+    # docker-compose.yml). Like REDIS_URL this must stay parseable: the async
+    # engine is created at module scope in src/db/session.py, so an empty value
+    # breaks importing the API rather than failing on first query.
+    DATABASE_URL: str = (
+        "postgresql+asyncpg://terramind:terramind_local@localhost:5432/terramind_db"
+    )
 
     # Geospatial providers
     EARTH_SEARCH_URL: str = "https://earth-search.aws.element84.com/v1"
@@ -16,7 +22,11 @@ class Settings(BaseSettings):
     PROVIDER_TIMEOUT_SECONDS: float = 15.0
 
     # Redis
-    REDIS_URL: str = ""
+    # Defaults to the same local Redis the CELERY_* URLs below point at. It must
+    # stay a parseable redis:// URL: RedisJobStore is constructed at module scope
+    # (src/async_processing/manager.py), so an empty value makes importing
+    # src.api.dependencies fail outright rather than at connect time.
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # Security
     SECRET_KEY: str = ""
