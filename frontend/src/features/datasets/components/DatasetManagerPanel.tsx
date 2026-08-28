@@ -5,6 +5,7 @@ import { DatasetUploader } from './DatasetUploader';
 import { NearbyQueryPanel } from './NearbyQueryPanel';
 import { ContainsQueryPanel } from './ContainsQueryPanel';
 import { IntersectsQueryPanel } from './IntersectsQueryPanel';
+import { StylePanel } from './StylePanel';
 
 export function DatasetManagerPanel() {
   const { datasets, removeDataset, toggleVisibility } = useDatasetManager();
@@ -37,6 +38,7 @@ export function DatasetManagerPanel() {
         <NearbyQueryPanel />
         <ContainsQueryPanel />
         <IntersectsQueryPanel />
+        <StylePanel />
       </div>
     </div>
   );
