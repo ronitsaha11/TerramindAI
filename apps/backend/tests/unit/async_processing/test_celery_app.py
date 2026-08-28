@@ -1,10 +1,15 @@
-from unittest.mock import patch
-
 from celery import Celery
 
 from src.async_processing.celery_app import app
 from src.async_processing.config import get_celery_config
 from src.core.config import settings
+
+# Fully-qualified names Celery registers these tasks under. FastAPI enqueues by
+# name, so these strings are the actual contract between the API and the worker.
+AI_TASK = "src.async_processing.tasks.ai_tasks.run_ai_inference_task"
+GEOSPATIAL_TASK = (
+    "src.async_processing.tasks.geospatial_tasks.run_geospatial_vectorization_task"
+)
 
 
 def test_celery_singleton_initialization():
@@ -49,14 +54,17 @@ def test_celery_app_configuration_applied():
     assert app.conf.worker_prefetch_multiplier == 1
 
 
-@patch("src.async_processing.celery_app.Celery.autodiscover_tasks")
-def test_autodiscovery_enabled(mock_autodiscover):
-    """Verify that task autodiscovery is triggered during initialization."""
-    # Since the module is already loaded, we have to reload it to trigger the mock
-    import importlib
+def test_task_modules_are_imported_so_tasks_are_registered():
+    """Importing the app must register every task FastAPI can enqueue.
 
-    import src.async_processing.celery_app
+    `celery_app` deliberately imports the task modules for their side effect
+    rather than calling `autodiscover_tasks`, which never actually imported
+    them: enqueue then failed with "task not registered" while the worker
+    itself started cleanly, because the two processes keep separate
+    registries. This asserts the registration outcome rather than the
+    mechanism, so it also fails if `ruff --fix` strips those imports.
+    """
+    registered = set(app.tasks)
 
-    importlib.reload(src.async_processing.celery_app)
-
-    mock_autodiscover.assert_called_once_with(["src.async_processing"])
+    assert AI_TASK in registered
+    assert GEOSPATIAL_TASK in registered
