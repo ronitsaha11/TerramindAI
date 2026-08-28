@@ -1,0 +1,95 @@
+import { TerrainLayer } from '@deck.gl/geo-layers';
+import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
+import { COORDINATE_SYSTEM } from '@deck.gl/core';
+
+// Hack to get getURLFromTemplate, which is not exported cleanly from index
+function getURLFromTemplate(template: any, tile: any, maxZ?: number) {
+  if (!template || !template.length) return null;
+  const index = tile.index || tile; // fallback if it's not nested
+  
+  let { x, y, z } = index;
+  if (maxZ !== undefined && z > maxZ) {
+    const diff = z - maxZ;
+    x = Math.floor(x / Math.pow(2, diff));
+    y = Math.floor(y / Math.pow(2, diff));
+    z = maxZ;
+  }
+
+  if (Array.isArray(template)) {
+    const arrIndex = Math.abs((x || 0) + (y || 0)) % template.length;
+    template = template[arrIndex];
+  }
+  return template
+    .replace(/\{x\}/g, x)
+    .replace(/\{y\}/g, y)
+    .replace(/\{z\}/g, z)
+    .replace(/\{-y\}/g, Math.pow(2, z) - y - 1);
+}
+
+const DUMMY_DATA = [1];
+
+export class GlobeTerrainLayer extends TerrainLayer {
+  getTiledTerrainData(tile: any) {
+    const { elevationData, fetch, texture, elevationDecoder, meshMaxError } = this.props as any;
+    const dataUrl = getURLFromTemplate(elevationData, tile, 15);
+    const textureUrl = texture && getURLFromTemplate(texture, tile);
+    const { signal, bbox } = tile;
+
+    console.log('[INSTRUMENTATION: STREAMING]', {
+      requestedImageryZXY: `${tile.index.z}/${tile.index.x}/${tile.index.y}`,
+      requestedDemZXY: `${tile.index.z}/${tile.index.x}/${tile.index.y}`,
+      cacheHitMiss: 'UNKNOWN', // Deck.gl internal cache
+      imageryURL: textureUrl,
+      demURL: dataUrl
+    });
+
+    // Use LNGLAT bounds directly instead of Web Mercator projected bounds!
+    const bounds = [bbox.west, bbox.south, bbox.east, bbox.north];
+
+    const terrain = (this as any).loadTerrain({
+      elevationData: dataUrl,
+      bounds,
+      elevationDecoder,
+      meshMaxError,
+      signal
+    }).then((mesh: any) => {
+      console.log('[INSTRUMENTATION: TERRAIN]', {
+        currentMeshSubdivision: 'UNKNOWN', // Inside deck.gl worker
+        demLoaded: true,
+        vertexCount: mesh?.vertexCount || (mesh?.positions?.value?.length / 3) || 0,
+        meshMaxError
+      });
+      return mesh;
+    }).catch(() => null);
+
+    const surface = textureUrl
+      ? fetch(textureUrl, { propName: 'texture', layer: this, loaders: [], signal }).catch(() => null)
+      : Promise.resolve(null);
+
+    return Promise.all([terrain, surface]);
+  }
+
+  renderSubLayers(props: any) {
+    const SubLayerClass = (this as any).getSubLayerClass('mesh', SimpleMeshLayer);
+    const { color, wireframe, material } = this.props as any;
+    const { data } = props;
+
+    if (!data) return null;
+    const [mesh, texture] = data;
+
+    return new SubLayerClass(props, {
+      data: DUMMY_DATA,
+      mesh,
+      texture,
+      _instanced: false,
+      // Force LNGLAT coordinate system so GlobeView projects it onto the sphere!
+      coordinateSystem: COORDINATE_SYSTEM.LNGLAT,
+      getPosition: (d: any) => [0, 0, 0],
+      getColor: color,
+      wireframe,
+      material
+    });
+  }
+}
+
+GlobeTerrainLayer.layerName = 'GlobeTerrainLayer';

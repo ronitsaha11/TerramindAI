@@ -2,6 +2,9 @@ import { useDatasetManager } from '../hooks/useDatasetManager';
 import { DatasetListItem } from './DatasetListItem';
 import { EmptyDatasetState } from './EmptyDatasetState';
 import { DatasetUploader } from './DatasetUploader';
+import { NearbyQueryPanel } from './NearbyQueryPanel';
+import { ContainsQueryPanel } from './ContainsQueryPanel';
+import { IntersectsQueryPanel } from './IntersectsQueryPanel';
 
 export function DatasetManagerPanel() {
   const { datasets, removeDataset, toggleVisibility } = useDatasetManager();
@@ -28,6 +31,12 @@ export function DatasetManagerPanel() {
             />
           ))
         )}
+      </div>
+
+      <div className="p-4 border-t">
+        <NearbyQueryPanel />
+        <ContainsQueryPanel />
+        <IntersectsQueryPanel />
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { ViewportQueryController } from './viewport-query-controller'
 import { SpatialBridge } from '../../spatial/stores/spatial-bridge'
 import { EnvironmentController } from './EnvironmentController'
 import { type FlyToOptions, type JumpToOptions, type FitBoundsOptions, type CameraBounds } from '../types/camera.types'
+import { MapLibreDatasetRenderer } from './MapLibreDatasetRenderer'
 
 export type EngineState = 'uninitialized' | 'mounting' | 'ready' | 'error' | 'destroyed'
 
@@ -42,6 +43,7 @@ export class EarthEngine {
   private _datasetRegistry: DatasetRegistry | null = null
   private _fpsTracker: FPSTracker | null = null
   private _environmentController: EnvironmentController | null = null
+  private _maplibreDatasetRenderer: MapLibreDatasetRenderer | null = null
   private _unsubWorkspace: (() => void) | null = null
   private _unsubEnvironment: (() => void) | null = null
 
@@ -110,12 +112,14 @@ export class EarthEngine {
       const projection = new ProjectionService()
       const fpsTracker = new FPSTracker()
       const environmentController = new EnvironmentController()
+      const maplibreDatasetRenderer = new MapLibreDatasetRenderer()
 
       this._camera = camera
       this._projection = projection
       this._coordinates = coordinates
       this._fpsTracker = fpsTracker
       this._environmentController = environmentController
+      this._maplibreDatasetRenderer = maplibreDatasetRenderer
 
       map.once('load', () => {
         if (this._state !== 'mounting') return
@@ -124,6 +128,8 @@ export class EarthEngine {
         camera.bind(map)
         projection.bind(map)
         camera.syncFromRenderer()
+
+        maplibreDatasetRenderer.initialize(map)
 
         // ─── Camera events ───────────────────────────
         const syncEvents = ['move', 'zoom', 'rotate', 'pitch'] as const
@@ -251,6 +257,14 @@ export class EarthEngine {
   // ─────────────────────────────────────────────
 
   /** 
+   * Expose the underlying MapLibre map instance for direct interaction.
+   * Use sparingly — prefer higher-level APIs where possible.
+   */
+  getMap(): MapLibreMap | null {
+    return this._map
+  }
+
+  /** 
    * Expose the LayerManager for system-level orchestration only.
    * React components must call this through services, never directly.
    */
@@ -268,6 +282,10 @@ export class EarthEngine {
 
   getDatasetRegistry(): DatasetRegistry | null {
     return this._datasetRegistry
+  }
+
+  getMapLibreDatasetRenderer(): MapLibreDatasetRenderer | null {
+    return this._maplibreDatasetRenderer
   }
 
   // ─────────────────────────────────────────────
@@ -292,6 +310,11 @@ export class EarthEngine {
     if (this._unsubEnvironment) {
       this._unsubEnvironment()
       this._unsubEnvironment = null
+    }
+
+    if (this._maplibreDatasetRenderer) {
+      this._maplibreDatasetRenderer.destroy()
+      this._maplibreDatasetRenderer = null
     }
 
     this._fpsTracker?.stop()

@@ -12,14 +12,14 @@ interface DatasetListItemProps {
 export function DatasetListItem({ dataset, onToggleVisibility, onRemove }: DatasetListItemProps) {
   // Use the layer store to get accurate reactive visibility state
   const isVisible = useLayerStore((state) => 
-    state.layers.find((l) => l.id === dataset.id)?.visible ?? true
+    state.layers.find((l) => l.id === dataset.id)?.visible ?? false
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawData = dataset.data as any;
-  const featureCount = Array.isArray(rawData?.features) 
-    ? rawData.features.length 
-    : 0;
+  // `data` is generic on IDataset; only its feature list matters here.
+  const rawData = dataset.data as { features?: unknown[] } | null | undefined;
+  const featureCount = Array.isArray(rawData?.features)
+    ? rawData.features.length
+    : (dataset.metadata?.featureCount ?? 0);
 
   return (
     <div className="flex flex-col gap-2 p-3 rounded-md bg-card border shadow-sm transition-colors hover:bg-accent/50">
