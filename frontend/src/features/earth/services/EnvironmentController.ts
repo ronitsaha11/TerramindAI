@@ -66,7 +66,7 @@ export class EnvironmentController {
     this._state = null
   }
 
-  private _syncTerrain(state: EnvironmentStateSnapshot): void {
+  private _syncTerrain(_state: EnvironmentStateSnapshot): void {
     // Terrain disabled in map-only baseline to prevent maplibre fetching dead URLs
     return
   }

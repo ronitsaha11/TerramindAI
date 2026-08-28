@@ -63,7 +63,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         rightSidebarOpen: state.rightSidebarOpen,
         activePanels: state.activePanels,
       }),
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       migrate: (persistedState: unknown, _version: number) => {
         // Placeholder for future schema migrations
         return persistedState as WorkspaceState
