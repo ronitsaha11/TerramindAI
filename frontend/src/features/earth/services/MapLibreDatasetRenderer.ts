@@ -648,11 +648,128 @@ export class MapLibreDatasetRenderer {
     }
   }
 
+  // ─── Natural-Language Query Result Rendering ────────────
+
+  private static NLQ_SOURCE = 'nlq-result-source';
+  private static NLQ_FILL = 'nlq-result-fill';
+  private static NLQ_LINE = 'nlq-result-line';
+  private static NLQ_CIRCLE = 'nlq-result-circle';
+  private static NLQ_FOCUS_SOURCE = 'nlq-focus-source';
+  private static NLQ_FOCUS_LAYER = 'nlq-focus-layer';
+
+  /**
+   * Render the results of a natural-language spatial query.
+   *
+   * Uses emerald (#10b981) to stay visually distinct from base rendering
+   * (blue/red), nearby (yellow/orange), contains (violet/green), and
+   * intersects (rose/cyan).
+   */
+  showNaturalQueryResults(
+    geojson: FeatureCollection<Geometry>,
+    focus?: { lon: number; lat: number },
+  ) {
+    if (!this.map) return;
+
+    // Clear any previous NLQ and other spatial-query results.
+    this.clearNaturalQueryResults();
+    this.clearNearbyResults();
+    this.clearContainsResults();
+    this.clearIntersectsResults();
+
+    this.map.addSource(MapLibreDatasetRenderer.NLQ_SOURCE, {
+      type: 'geojson',
+      data: geojson,
+    });
+
+    this.map.addLayer({
+      id: MapLibreDatasetRenderer.NLQ_FILL,
+      type: 'fill',
+      source: MapLibreDatasetRenderer.NLQ_SOURCE,
+      filter: ['==', '$type', 'Polygon'],
+      paint: {
+        'fill-color': '#10b981',
+        'fill-opacity': 0.35,
+      },
+    });
+
+    this.map.addLayer({
+      id: MapLibreDatasetRenderer.NLQ_LINE,
+      type: 'line',
+      source: MapLibreDatasetRenderer.NLQ_SOURCE,
+      filter: ['any', ['==', '$type', 'Polygon'], ['==', '$type', 'LineString']],
+      paint: {
+        'line-color': '#10b981',
+        'line-width': 3,
+      },
+    });
+
+    this.map.addLayer({
+      id: MapLibreDatasetRenderer.NLQ_CIRCLE,
+      type: 'circle',
+      source: MapLibreDatasetRenderer.NLQ_SOURCE,
+      filter: ['==', '$type', 'Point'],
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#10b981',
+        'circle-stroke-width': 2.5,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
+
+    // A marker showing the focus point (the resolved reference place).
+    if (focus) {
+      this.map.addSource(MapLibreDatasetRenderer.NLQ_FOCUS_SOURCE, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [focus.lon, focus.lat] },
+          properties: {},
+        },
+      });
+
+      this.map.addLayer({
+        id: MapLibreDatasetRenderer.NLQ_FOCUS_LAYER,
+        type: 'circle',
+        source: MapLibreDatasetRenderer.NLQ_FOCUS_SOURCE,
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#ef4444',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+    }
+  }
+
+  /** Remove all natural-language query result layers and sources. */
+  clearNaturalQueryResults() {
+    if (!this.map) return;
+
+    const layers = [
+      MapLibreDatasetRenderer.NLQ_FILL,
+      MapLibreDatasetRenderer.NLQ_LINE,
+      MapLibreDatasetRenderer.NLQ_CIRCLE,
+      MapLibreDatasetRenderer.NLQ_FOCUS_LAYER,
+    ];
+    for (const layerId of layers) {
+      if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
+    }
+
+    const sources = [
+      MapLibreDatasetRenderer.NLQ_SOURCE,
+      MapLibreDatasetRenderer.NLQ_FOCUS_SOURCE,
+    ];
+    for (const sourceId of sources) {
+      if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+    }
+  }
+
   destroy() {
     this.cleanupAllDatasets();
     this.clearNearbyResults();
     this.clearContainsResults();
     this.clearIntersectsResults();
+    this.clearNaturalQueryResults();
     if (this.unsubLayerStore) this.unsubLayerStore();
     if (this.unsubProjectStore) this.unsubProjectStore();
     this.map = null;
