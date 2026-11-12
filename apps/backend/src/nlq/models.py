@@ -15,9 +15,9 @@ MAX_DISTANCE_METERS = 50_000.0
 
 
 class SpatialIntent(BaseModel):
-    """The only structure Claude is permitted to emit.
+    """The only structure the interpreter is permitted to emit.
 
-    Every field is a *name* or a number - never an identifier. Claude cannot
+    Every field is a *name* or a number - never an identifier. The model cannot
     address a row, because it is never shown one: resolving these names to
     dataset and feature UUIDs is done afterwards, in Python, against the live
     registry. `extra="forbid"` makes an invented field a validation failure
@@ -40,7 +40,11 @@ class SpatialIntent(BaseModel):
         default=None,
         description=(
             "Category of feature the user wants back, singular (for example "
-            "'hospital'). Omit when the user asks for everything nearby."
+            "'hospital'). Copy what the user asked for even when it is not a "
+            "category this project has - it is checked against the real data "
+            "and refused if it does not exist. Omit it ONLY when the user "
+            "asked for every feature, because omitting it removes the filter "
+            "entirely."
         ),
     )
     target_dataset: str | None = Field(
@@ -74,7 +78,7 @@ class SpatialIntent(BaseModel):
 
 
 class DatasetSummary(BaseModel):
-    """One dataset as described to Claude. Names and categories only."""
+    """One dataset as described to the model. Names and categories only."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -84,7 +88,7 @@ class DatasetSummary(BaseModel):
 
 
 class ProjectCatalogue(BaseModel):
-    """Everything Claude is told about a project's data.
+    """Everything the model is told about a project's data.
 
     No geometry, no coordinates, no identifiers, no feature rows - only the
     vocabulary needed to choose an operation and name a target.

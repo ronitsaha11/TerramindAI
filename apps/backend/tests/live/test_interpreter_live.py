@@ -1,4 +1,4 @@
-"""Golden-set checks against the real Claude API.
+"""Golden-set checks against the real Gemini API.
 
 Deselected by default (see `addopts` in pyproject.toml) and never run in CI:
 they need credentials, cost money, and are nondeterministic. Run deliberately:
@@ -10,18 +10,18 @@ expect. Everything else stubs the interpreter, which verifies the pipeline but
 says nothing about whether interpretation is any good.
 """
 
-import os
-
 import pytest
 
-from src.nlq.interpreter import ClaudeInterpreter
+from src.core.config import settings
+from src.nlq.interpreter import GeminiInterpreter
+from src.nlq.key_pool import GeminiKeyPool
 from src.nlq.models import DatasetSummary, ProjectCatalogue
 
 pytestmark = [
     pytest.mark.live,
     pytest.mark.skipif(
-        not os.environ.get("ANTHROPIC_API_KEY"),
-        reason="ANTHROPIC_API_KEY is not set",
+        not settings.gemini_api_keys(),
+        reason="no GEMINI_API_KEY / GEMINI_API_KEY_1.. is configured",
     ),
 ]
 
@@ -39,9 +39,21 @@ CATALOGUE = ProjectCatalogue(
 
 @pytest.fixture
 def interpreter():
-    from anthropic import AsyncAnthropic
+    """Backed by every configured key, so a golden run can outlast one quota."""
+    from google import genai
 
-    return ClaudeInterpreter(AsyncAnthropic())
+    clients: dict[str, object] = {}
+
+    def client_for(api_key: str) -> object:
+        if api_key not in clients:
+            clients[api_key] = genai.Client(api_key=api_key)
+        return clients[api_key]
+
+    return GeminiInterpreter(
+        client_for,
+        GeminiKeyPool(settings.gemini_api_keys()),
+        model=settings.NLQ_MODEL,
+    )
 
 
 @pytest.mark.parametrize(
@@ -78,7 +90,16 @@ async def test_unknown_category_is_not_invented(interpreter):
         "show airports within 3 km of Lalbagh", CATALOGUE
     )
 
-    # The resolver refuses anything outside the catalogue anyway; what matters
-    # here is that the model does not silently relabel "airports" as one of the
-    # categories that does exist, which would turn a refusal into a wrong answer.
+    # Two failure modes, both of which turn a refusal into a wrong answer.
+    #
+    # Relabelling "airports" as a category that does exist would answer a
+    # different question. Dropping it entirely is worse and was a real bug: a
+    # null category means "the user wanted everything", so the request returned
+    # every feature in the radius with HTTP 200. The category has to survive to
+    # the resolver, which is what refuses it.
+    assert intent.target_category is not None, (
+        "an unavailable category must be preserved, not dropped - a null "
+        "category removes the filter and returns everything nearby"
+    )
     assert intent.target_category not in {"hospital", "park", "station"}
+    assert "airport" in intent.target_category.casefold()
