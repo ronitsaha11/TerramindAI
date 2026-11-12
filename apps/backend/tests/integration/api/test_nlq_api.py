@@ -3,8 +3,8 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.api.dependencies import get_natural_query_service
-from src.core.config import settings
+from src.api.dependencies import _gemini_key_pool, get_natural_query_service
+from src.core.config import Settings
 from src.main import app
 from src.nlq.exceptions import InterpretationError, InterpreterUnavailableError
 from src.nlq.models import NaturalQueryResult, PlaceCandidate, SpatialIntent
@@ -136,19 +136,46 @@ async def test_request_validation(payload):
 
 
 async def test_missing_api_key_degrades_to_503(monkeypatch):
-    """No Claude credentials must cost exactly one endpoint, nothing else.
+    """No Gemini credentials must cost exactly one endpoint, nothing else.
 
     This exercises the real dependency chain rather than an override, so it also
     proves resolving it touches no database.
-    """
-    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        response = await client.post(URL, json={"query": "hospitals near Lalbagh"})
-        health = await client.get("/api/v1/health")
+    Every key source is emptied, not just GEMINI_API_KEY: rotation reads the
+    numbered slots too, and the pool that holds them is cached for the process
+    lifetime so it has to be rebuilt for this test to see the change.
+    """
+    monkeypatch.setattr(Settings, "gemini_api_keys", lambda self: [])
+    _gemini_key_pool.cache_clear()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(URL, json={"query": "hospitals near Lalbagh"})
+            health = await client.get("/api/v1/health")
+    finally:
+        # Leave no emptied pool behind for whatever runs next.
+        _gemini_key_pool.cache_clear()
 
     assert response.status_code == 503
-    assert "ANTHROPIC_API_KEY" in response.json()["error"]["message"]
+    assert "GEMINI_API_KEY" in response.json()["error"]["message"]
     assert health.status_code == 200
+
+
+async def test_configured_keys_do_not_reach_the_client(monkeypatch):
+    """A 503 body explains what to configure; it never quotes a key."""
+    monkeypatch.setattr(Settings, "gemini_api_keys", lambda self: [])
+    _gemini_key_pool.cache_clear()
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(URL, json={"query": "hospitals near Lalbagh"})
+    finally:
+        _gemini_key_pool.cache_clear()
+
+    message = response.json()["error"]["message"]
+    assert "GEMINI_API_KEY_1" in message  # names the slots to configure
+    assert "AQ." not in message and "sk-" not in message

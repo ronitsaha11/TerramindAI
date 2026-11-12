@@ -24,7 +24,8 @@ from src.geospatial.geojson_exporter import GeoJSONExporter
 from src.geospatial.geometry_processor import GeometryProcessor
 from src.geospatial.interfaces import PolygonizerProtocol
 from src.geospatial.service import GeospatialService
-from src.nlq.interpreter import ClaudeInterpreter, NLQInterpreter
+from src.nlq.interpreter import GeminiInterpreter, NLQInterpreter
+from src.nlq.key_pool import GeminiKeyPool
 from src.nlq.service import NaturalQueryService
 from src.providers.catalog.base import CatalogProvider
 from src.providers.catalog.earth_search import EarthSearchProvider
@@ -218,42 +219,60 @@ def get_job_service() -> "JobService":
     )
 
 
-# The Anthropic SDK is imported on first use for the same reason rasterio is:
+# The key pool is process-level, not per-request: a key retired because it ran
+# out of quota must stay retired for the next request, which is what lets keys
+# rotate without restarting the server. Interpreters are cheap and built per
+# request; the rotation cursor they share is not.
+@lru_cache
+def _gemini_key_pool() -> GeminiKeyPool:
+    return GeminiKeyPool(settings.gemini_api_keys())
+
+
+# One client per key, built on demand and reused. Keyed by the secret because
+# that is what distinguishes them; this dict is in-process and never logged.
+_GEMINI_CLIENTS: dict[str, object] = {}
+
+
+# The Gemini SDK is imported on first use for the same reason rasterio is:
 # a missing or broken optional dependency should cost you one endpoint, not the
 # whole API.
-@lru_cache
-def _anthropic_client() -> object:
-    from anthropic import AsyncAnthropic
+def _gemini_client_for(api_key: str) -> object:
+    client = _GEMINI_CLIENTS.get(api_key)
+    if client is None:
+        from google import genai
 
-    return AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        client = genai.Client(api_key=api_key)
+        _GEMINI_CLIENTS[api_key] = client
+    return client
 
 
 def get_nlq_interpreter() -> NLQInterpreter:
-    """Dependency provider for the Claude-backed interpreter.
+    """Dependency provider for the Gemini-backed interpreter.
 
     Fails closed with 503 when no API key is configured, so a deployment
-    without Claude credentials still serves every other route.
+    without Gemini credentials still serves every other route.
     """
-    if not settings.ANTHROPIC_API_KEY:
+    pool = _gemini_key_pool()
+    if not pool.slot_count:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
-                "Natural-language queries are unavailable because "
-                "ANTHROPIC_API_KEY is not configured. Dataset and spatial "
-                "query endpoints are unaffected."
+                "Natural-language queries are unavailable because no "
+                "GEMINI_API_KEY (or GEMINI_API_KEY_1, _2, ...) is configured. "
+                "Dataset and spatial query endpoints are unaffected."
             ),
         )
     try:
-        client = _anthropic_client()
+        import google.genai  # noqa: F401
     except ImportError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "Natural-language queries are unavailable because the "
-                f"'anthropic' package could not be imported: {exc}."
+                f"'google-genai' package could not be imported: {exc}."
             ),
         ) from exc
-    return ClaudeInterpreter(client, model=settings.NLQ_MODEL)
+    return GeminiInterpreter(_gemini_client_for, pool, model=settings.NLQ_MODEL)
 
 
 def get_natural_query_service(

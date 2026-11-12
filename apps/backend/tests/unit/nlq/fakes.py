@@ -142,7 +142,7 @@ class FakeUoW:
 class FakeInterpreter:
     """Returns a scripted intent and records what it was shown.
 
-    Standing in for Claude here is the point: the pipeline is proven without a
+    Standing in for the model here is the point: the pipeline is proven without a
     network call, an API key, or any nondeterminism.
     """
 

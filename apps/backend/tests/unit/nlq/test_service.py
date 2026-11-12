@@ -208,12 +208,12 @@ async def test_empty_project_short_circuits_before_the_model_runs():
     result = await service.answer(PROJECT_ID, "anything")
 
     assert result.status == "unresolved"
-    assert interpreter.seen_query is None, "no reason to call Claude with no data"
+    assert interpreter.seen_query is None, "no reason to call the model with no data"
     assert engine.calls == []
 
 
 async def test_model_is_shown_names_only_never_data():
-    """What Claude sees is the whole attack surface - assert it stays vocabulary."""
+    """What the model sees is the whole attack surface - assert it stays vocabulary."""
     intent = SpatialIntent(
         operation="nearby", reference_place=GARDENS, distance_meters=2000
     )
