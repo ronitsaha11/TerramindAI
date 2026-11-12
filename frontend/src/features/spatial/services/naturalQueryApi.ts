@@ -21,7 +21,7 @@ export interface PlaceCandidate {
   lat: number;
 }
 
-/** The interpreted intent — what Claude understood the question to mean. */
+/** The interpreted intent — what the model understood the question to mean. */
 export interface SpatialInterpretation {
   operation: 'nearby' | 'contains' | 'intersects';
   reference_place: string | null;

@@ -10,7 +10,7 @@ import type { FeatureCollection, Geometry } from 'geojson';
 /**
  * A natural-language query interface for the TerraMind spatial engine.
  *
- * The user types a question, the backend interprets it with Claude, validates
+ * The user types a question, the backend interprets it with Gemini, validates
  * the intent, runs the existing spatial engine, and returns GeoJSON that this
  * component renders on the existing map.
  *
