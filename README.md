@@ -4,8 +4,8 @@
 ![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![PostGIS](https://img.shields.io/badge/PostGIS-15--3.3-336791?logo=postgresql&logoColor=white)
-![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-6-396CB2?logo=maplibre&logoColor=white)
+![PostgreSQL 15 + PostGIS 3.3](https://img.shields.io/badge/PostgreSQL_15-PostGIS_3.3-336791?logo=postgresql&logoColor=white)
+![MapLibre GL 6](https://img.shields.io/badge/MapLibre_GL-6-396CB2?logo=maplibre&logoColor=white)
 
 **An Earth Intelligence platform that turns natural-language questions into
 verifiable geospatial analysis.** Ask *"Show hospitals within 2 km of Lalbagh
@@ -46,10 +46,15 @@ be reproduced and checked.
                       GeoJSON FeatureCollection ─► MapLibre GL renders it
 ```
 
-The model never writes SQL and never sees the database. If a place name is
-ambiguous ("Lalbagh" matches a station, a nursing home and the botanical
-gardens) or a category does not exist in the project, TerraMind asks or
-explains instead of guessing, and no spatial query is run.
+Gemini's only job is to turn the question into that structured intent. It is
+shown the project's dataset names, feature counts and category names, never
+the features themselves, and it never writes SQL or computes a result.
+Validating the intent, resolving the place, checking the category and running
+the spatial query all happen in deterministic backend code.
+
+If a place name is ambiguous ("Lalbagh" matches a station, a nursing home and
+the botanical gardens) or a category does not exist in the project, TerraMind
+asks or explains instead of guessing, and no spatial query is run.
 
 ## Features
 
@@ -64,21 +69,37 @@ explains instead of guessing, and no spatial query is run.
   and colour-coded query results.
 - **GeoJSON import.** Datasets uploaded as GeoJSON become queryable
   immediately.
-- **Raster analytics.** NDVI, NDWI and NDBI spectral indices over raster
-  scenes, computed by the backend's analytics engine.
-- **Background jobs.** Long-running work runs on Celery with Redis.
+- **Raster analytics (backend API).** NDVI, NDWI and NDBI spectral indices
+  over multi-band rasters opened with rasterio, from a local file or a
+  cloud-optimised GeoTIFF URL.
+- **Satellite scene search (backend API).** STAC scene search through Element
+  84's Earth Search, with tile templates from a TiTiler instance. Not yet
+  available in the map interface.
+- **Background jobs.** SegFormer segmentation inference and raster-to-vector
+  conversion run on Celery workers with Redis.
 - **API-key failover.** Several Gemini keys can be configured; a request
   refused for quota moves to the next key. This is failover, not extra quota.
+
+### What has been verified, and how
+
+| Capability | Verification |
+| --- | --- |
+| Natural-language **nearby** query | Exercised live in the browser against a fresh clone of `main`: Gemini interpretation, PostGIS execution and MapLibre rendering. The 75 features returned matched an independent PostGIS query feature for feature. |
+| Ambiguous place and unknown category | Exercised live in the browser: both stop before any spatial query and draw nothing. |
+| Natural-language **contains** and **intersects** | Wired to the same engine primitives and covered by automated tests; not yet exercised against live Gemini. |
+| Raster indices, scene search, Celery job tasks | Backend unit and integration tests, with external services mocked; not exercised live in this release. |
+| GeoJSON import | No automated test yet. |
+| Map interface | Lint, type-check and production build in CI; no automated UI tests. |
 
 ## Architecture
 
 | Layer | Location | Technology |
 | --- | --- | --- |
 | Frontend | `frontend/` | React 19, TypeScript, Vite, MapLibre GL 6, Zustand, TanStack Query, Tailwind CSS |
-| API | `apps/backend/` | FastAPI, Pydantic v2, SQLAlchemy 2 (async), GeoAlchemy2 |
+| API | `apps/backend/` | FastAPI, Pydantic v2, SQLAlchemy 2 (async), GeoAlchemy2, Alembic |
 | Language interpretation | `apps/backend/src/nlq/` | Google Gemini via `google-genai` |
-| Database | Docker | PostgreSQL + PostGIS 15-3.3 |
-| Jobs | `apps/backend/` | Celery + Redis |
+| Database | Docker | PostgreSQL 15 + PostGIS 3.3 |
+| Jobs | `apps/backend/src/async_processing/` | Celery workers, Redis broker and job state |
 | Raster / ML | `apps/backend/src/analytics/`, `apps/backend/src/ai/` | rasterio, PyTorch, Transformers (SegFormer, backend only) |
 
 > `apps/frontend/` is a dead Next.js scaffold kept only for history. The active
@@ -88,27 +109,40 @@ explains instead of guessing, and no spatial query is run.
 
 ### Prerequisites
 
-- Node.js 22 and **pnpm** (not npm)
+- Node.js 22 (the version CI uses) and **pnpm** 11, not npm
 - Python 3.13
 - Docker Desktop
 
+### Install dependencies
+
+From the repository root, on Windows:
+
+```powershell
+py -3.13 -m venv apps\backend\.venv
+apps\backend\.venv\Scripts\python -m pip install -r apps\backend\requirements-dev.txt
+pnpm --dir frontend install --frozen-lockfile
+```
+
+The start script expects the virtualenv at exactly `apps\backend\.venv`.
+`requirements.txt` pulls CPU-only PyTorch from the PyTorch package index, so
+the first install is large. If pip fails with "The filename or extension is
+too long", clone the repository to a shorter path.
+
 ### Configure
 
-```bash
-cp .env.example .env
-cp apps/backend/.env.example apps/backend/.env
-cp frontend/.env.example frontend/.env
+```powershell
+copy .env.example .env
+copy apps\backend\.env.example apps\backend\.env
+copy frontend\.env.example frontend\.env
 ```
 
-Natural-language queries need at least one Gemini API key in
-`apps/backend/.env`:
+Natural-language queries need at least one Gemini API key. Where it goes
+depends on how you run the API:
 
-```bash
-GEMINI_API_KEY_1=...
-# Optional extra keys for failover:
-# GEMINI_API_KEY_2=...
-# NLQ_MODEL=gemini-3.6-flash
-```
+| API runs | Put the key in | Variables |
+| --- | --- | --- |
+| Natively (`start_stack.ps1`) | `apps/backend/.env` | `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, ... (any number), and optionally `NLQ_MODEL` (default `gemini-3.6-flash`) |
+| In Docker | `.env` at the repository root | `GEMINI_API_KEY_1` to `GEMINI_API_KEY_3`, or `GEMINI_API_KEY`; Docker Compose passes only these through |
 
 Keys stay on the server. Without a key everything else works and
 `/query/natural` returns `503`. Never put a key in `frontend/.env`: every
@@ -146,22 +180,30 @@ permission errors. The start script does this for you.
 
 ### Run the backend in Docker instead
 
-`docker compose up -d` also builds and runs the API and the Celery worker in
-Linux containers. Use this where the host blocks native raster libraries (for
-example, Windows Smart App Control blocking rasterio). It uses the same host
-ports as the native API, so run one or the other.
+Docker Compose can also build and run the API and the Celery worker in Linux
+containers. Use this where the host blocks native raster libraries (for
+example, Windows Smart App Control blocking rasterio):
+
+```powershell
+docker compose up -d --build
+docker compose exec backend python -m alembic upgrade head
+pnpm --dir frontend dev --port 5273 --strictPort
+```
+
+The containerised API uses the same host port (8000) as the native one, so
+run one or the other.
 
 ## Spatial queries
 
 The same three predicates are available directly from the Datasets panel,
 each rendered in a distinct colour:
 
-| Query      | Endpoint                       | Predicate |
-| ---------- | ------------------------------ | --------- |
-| Nearby     | `GET .../query/nearby`         | `ST_DWithin`, both sides cast to `::geography` |
-| Contains   | `GET .../query/contains`       | `ST_Contains` from a clicked polygon |
-| Intersects | `GET .../query/intersects`     | `ST_Intersects` against a second dataset |
-| Natural language | `POST .../query/natural` | One of the above, chosen from the question |
+| Query      | Endpoint | Predicate |
+| ---------- | -------- | --------- |
+| Nearby     | `GET /api/v1/projects/{project_id}/datasets/{dataset_id}/query/nearby` | `ST_DWithin`, both sides cast to `::geography` |
+| Contains   | `GET /api/v1/projects/{project_id}/datasets/{dataset_id}/query/contains` | `ST_Contains` from a clicked polygon |
+| Intersects | `GET /api/v1/projects/{project_id}/datasets/{dataset_id}/query/intersects` | `ST_Intersects` against a second dataset |
+| Natural language | `POST /api/v1/projects/{project_id}/query/natural` | One of the above, chosen from the question |
 
 The `::geography` cast on `ST_DWithin` is required: without it the radius is
 measured in degrees, not metres. The full API is documented at `/docs` while
@@ -193,14 +235,15 @@ every push to `main`.
 
 The natural-language pipeline, PostGIS query engine, MapLibre map and dataset
 import work end to end on a local stack. TerraMind is not yet production
-software: there is no authentication or multi-user access control yet, and
-background jobs are not yet durable.
+software: there is no authentication or multi-user access control, and job
+state is held in Redis rather than in the database.
 
 Planned next, not yet implemented:
 
 - Authentication and project-level access control
-- Durable job processing
-- Satellite imagery discovery (STAC) and cloud-optimised GeoTIFF support
+- Persistent job tracking in the database
+- Satellite scenes and imagery layers in the map interface (scene search
+  exists in the backend API today)
 - Vector tiles for large datasets
 
 ## Contributing
@@ -211,19 +254,32 @@ behaviour should come with tests.
 
 ## Security
 
-Please do not report security vulnerabilities through public issues. Contact
-the maintainer privately through GitHub instead. Never include API keys or
-other credentials in issues, pull requests or logs.
+Please do not report security vulnerabilities in public issues. Private
+vulnerability reporting is not yet enabled for this repository; until it is,
+open an issue asking for a private contact, without including any details of
+the vulnerability. Never include API keys or other credentials in issues, pull
+requests or logs.
 
 ## Licence
 
-No licence has been chosen for this repository yet. Until one is added, no
-permission is granted to use, copy, modify or distribute the code.
+No licence has been granted for TerraMind AI's own source code. Without one,
+the code remains protected by default copyright: you may view it here, and
+GitHub's Terms of Service let you view and fork public repositories on
+GitHub, but no permission is granted to use, copy, modify or distribute it.
+This is the default legal position, not a separate proprietary licence.
 
-## Data and attribution
+Third-party software, models, data and services used by TerraMind are not
+covered by this statement. They remain under their own terms, listed below.
 
-The sample dataset `datasets/bangalore_osm.geojson` is derived from
-© OpenStreetMap contributors and is available under the
-[Open Database Licence (ODbL)](https://www.openstreetmap.org/copyright).
-Basemap © [CARTO](https://carto.com/attributions); map data © OpenStreetMap
-contributors.
+## Third-party components and attribution
+
+| Component | How TerraMind uses it | Terms |
+| --- | --- | --- |
+| Python and npm dependencies | Installed from PyPI and npm; not vendored | Each package's own licence, predominantly MIT, BSD and Apache-2.0, with MPL-2.0 for a few packages |
+| `datasets/bangalore_osm.geojson` | Sample dataset derived from OpenStreetMap | © OpenStreetMap contributors, available under the [Open Database Licence](https://www.openstreetmap.org/copyright) |
+| CARTO Dark Matter basemap | Basemap style loaded by the frontend | Requires the attribution "© OpenStreetMap contributors, © CARTO". CARTO's [Basemap Terms](https://carto.com/legal/basemap-terms/) tie free use to a CARTO-issued API key and set usage limits; the frontend currently requests the style without a key |
+| SegFormer weights (`nvidia/segformer-b0-finetuned-ade-512-512`) | Downloaded from Hugging Face at runtime; not stored in this repository | [NVIDIA Source Code License for SegFormer](https://github.com/NVlabs/SegFormer/blob/master/LICENSE), which permits non-commercial use (research or evaluation) only |
+| Element 84 Earth Search | STAC endpoint used by the backend scene search (`EARTH_SEARCH_URL`) | Sentinel-2 data it indexes is Copernicus Sentinel data, provided under the Copernicus Sentinel data terms |
+| TiTiler at `titiler.xyz` | Default tile server for scene tiles (`TITILER_URL`) | A publicly hosted third-party instance; no service terms were found. Configure your own instance for production use |
+| MapLibre demo terrain tiles | URL present in `terrain.config.ts`; terrain is disabled, so it is not requested at runtime | A sample service for MapLibre's examples and tests |
+| Ruff (`ruff-bin/ruff.exe`, `ruff.zip`) | Copies of the Ruff linter binary committed to the repository | Ruff is MIT-licensed, which requires its licence notice to accompany copies; these copies are committed without it and are due to be removed |
