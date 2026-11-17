@@ -14,6 +14,10 @@ datasets, computed by PostGIS and drawn on an interactive map.
 
 ![Natural-language query answered on the map: 75 hospitals within 2 km of Lalbagh Botanical Gardens](docs/images/nlq-hospitals-near-lalbagh.jpg)
 
+<sub>Basemap © [CARTO](https://carto.com/attributions); map data ©
+[OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+Screenshot from the local development build.</sub>
+
 ## Why
 
 Spatial questions are easy to say and tedious to answer: find the dataset,
