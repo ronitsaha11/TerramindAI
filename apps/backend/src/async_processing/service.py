@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any, cast
 
@@ -7,11 +8,14 @@ from src.async_processing.enums import JobStatus
 from src.async_processing.exceptions import (
     InvalidJobOperationError,
     JobCancellationError,
+    JobDispatchError,
     JobRetryError,
 )
 from src.async_processing.manager import TaskManager
 from src.async_processing.models import JobProgress, JobRecord
 from src.async_processing.registry import TaskRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class JobService:
@@ -58,15 +62,36 @@ class JobService:
             task_name=task_name, metadata={"request_data": payload}
         )
 
-        # 3. Dispatch to Celery using apply_async
-        # We pass task_func directly or we can use the signature.
-        # But wait, self._task_registry stores the actual Celery `@app.task` object!
-        task_func.apply_async(
-            kwargs={"job_id_str": str(job.job_id), "request_data": payload},
-            task_id=str(job.job_id),
-        )
+        # 3. Dispatch the registered Celery task, reusing the job id as task id.
+        self._dispatch(task_func, job.job_id, payload)
 
         return job.job_id
+
+    def _dispatch(
+        self, task_func: Task, job_id: uuid.UUID, request_data: dict[str, Any]
+    ) -> None:
+        """Queue the task; if the queue is unreachable, fail the job record.
+
+        Without this, a broker outage left the record PENDING (or RETRY)
+        forever: it showed in the job list but could never run.
+        """
+        try:
+            task_func.apply_async(
+                kwargs={"job_id_str": str(job_id), "request_data": request_data},
+                task_id=str(job_id),
+            )
+        except Exception as exc:
+            # The exception text can carry broker URLs, so neither the stored
+            # record nor the response repeats it; the log keeps the type only.
+            logger.error(
+                "Could not queue job %s (%s); marking it FAILURE.",
+                job_id,
+                type(exc).__name__,
+            )
+            self._task_manager.mark_dispatch_failed(
+                job_id, "The job queue was unavailable; the job was not started."
+            )
+            raise JobDispatchError() from exc
 
     def get_job(self, job_id: uuid.UUID) -> JobRecord:
         """Retrieve a job record."""
@@ -117,21 +142,24 @@ class JobService:
         if job.status == JobStatus.SUCCESS:
             raise JobRetryError("Cannot retry a successfully completed job.")
 
+        # Only a finished, unsuccessful job may be re-run. Re-dispatching a job
+        # that is still pending or running would execute it twice under the
+        # same task id.
+        if job.status not in (JobStatus.FAILURE, JobStatus.CANCELLED):
+            raise JobRetryError(
+                f"Only failed or cancelled jobs can be retried; job {job_id} "
+                f"is {job.status.value}."
+            )
+
         if "request_data" not in job.metadata:
             raise JobRetryError(
                 "Cannot retry job: missing original request data in metadata."
             )
 
-        # Re-dispatch Celery task
         task_func = cast(Task, self._task_registry.lookup(job.task_name))
 
-        task_func.apply_async(
-            kwargs={
-                "job_id_str": str(job.job_id),
-                "request_data": job.metadata["request_data"],
-            },
-            task_id=str(job.job_id),
-        )
-
-        # Move back to RETRY state so the worker will transition it to STARTED
-        return self._task_manager.mark_retry(job_id)
+        # Record the state change before dispatching, so a rejected transition
+        # can never leave a task queued behind an error response.
+        updated = self._task_manager.requeue_for_retry(job_id)
+        self._dispatch(task_func, job_id, job.metadata["request_data"])
+        return updated

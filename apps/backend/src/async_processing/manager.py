@@ -192,6 +192,49 @@ class TaskManager:
         self._store.update_job(updated_job)
         return updated_job
 
+    # The two transitions below are deliberately not in _VALID_TRANSITIONS.
+    # That table governs what a running worker may do, and a worker must never
+    # revive a FAILURE or CANCELLED job or fail one it was never handed. These
+    # are only for JobService, which owns submission and manual retry.
+
+    def requeue_for_retry(self, job_id: uuid.UUID) -> JobRecord:
+        """Move a FAILURE or CANCELLED job to RETRY for a manual re-run."""
+        job = self._store.get_job(job_id)
+        if job.status not in (JobStatus.FAILURE, JobStatus.CANCELLED):
+            raise JobStateError(
+                f"Only FAILURE or CANCELLED jobs can be requeued; job {job_id} "
+                f"is {job.status.value}."
+            )
+
+        updated_job = job.model_copy(
+            update={
+                "status": JobStatus.RETRY,
+                "error_message": None,
+                "updated_at": datetime.datetime.now(datetime.UTC),
+            }
+        )
+        self._store.update_job(updated_job)
+        return updated_job
+
+    def mark_dispatch_failed(self, job_id: uuid.UUID, error_message: str) -> JobRecord:
+        """Fail a PENDING or RETRY job whose task never reached the queue."""
+        job = self._store.get_job(job_id)
+        if job.status not in (JobStatus.PENDING, JobStatus.RETRY):
+            raise JobStateError(
+                f"Job {job_id} is {job.status.value}; only a job that was never "
+                "dispatched can be marked as a dispatch failure."
+            )
+
+        updated_job = job.model_copy(
+            update={
+                "status": JobStatus.FAILURE,
+                "error_message": error_message,
+                "updated_at": datetime.datetime.now(datetime.UTC),
+            }
+        )
+        self._store.update_job(updated_job)
+        return updated_job
+
 
 # Global default instances for loose coupling across the async execution context
 _default_store = RedisJobStore()

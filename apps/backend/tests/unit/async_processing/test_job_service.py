@@ -213,7 +213,8 @@ def test_retry_job_success(
         kwargs={"job_id_str": str(job_id), "request_data": {"param": 1}},
         task_id=str(job_id),
     )
-    mock_task_manager.mark_retry.assert_called_once_with(job_id)
+    mock_task_manager.requeue_for_retry.assert_called_once_with(job_id)
+    mock_task_manager.mark_retry.assert_not_called()
 
 
 def test_retry_job_success_rejection(
