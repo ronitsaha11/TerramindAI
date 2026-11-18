@@ -273,7 +273,8 @@ GitHub, but no permission is granted to use, copy, modify or distribute it.
 This is the default legal position, not a separate proprietary licence.
 
 Third-party software, models, data and services used by TerraMind are not
-covered by this statement. They remain under their own terms, listed below.
+covered by this statement. They remain under their own terms, summarised
+below and recorded in full in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Third-party components and attribution
 
