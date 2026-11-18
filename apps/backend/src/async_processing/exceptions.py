@@ -45,6 +45,19 @@ class JobSubmissionError(AsyncProcessingError):
         super().__init__(detail=detail, status_code=400)
 
 
+class JobDispatchError(AsyncProcessingError):
+    """Raised when a job could not be handed to the task queue.
+
+    The request itself was valid; the queue (broker) was unreachable. The job
+    record is marked FAILURE so it does not linger as PENDING forever.
+    """
+
+    def __init__(
+        self, detail: str = "The job queue is unavailable; the job was not started."
+    ) -> None:
+        super().__init__(detail=detail, status_code=503)
+
+
 class JobCancellationError(AsyncProcessingError):
     """Raised when a job cancellation request is invalid."""
 
