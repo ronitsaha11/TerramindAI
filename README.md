@@ -195,7 +195,8 @@ pnpm --dir frontend dev --port 5273 --strictPort
 ```
 
 The containerised API uses the same host port (8000) as the native one, so
-run one or the other.
+run one or the other. Docker Compose publishes PostgreSQL, Redis and the API
+on `127.0.0.1` only, so other devices on the same network cannot reach them.
 
 ## Spatial queries
 
