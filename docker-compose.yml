@@ -5,8 +5,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-terramind}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-terramind_local}
       POSTGRES_DB: ${POSTGRES_DB:-terramind_db}
+    # Bound to loopback: only this machine can connect. Published on all interfaces,
+    # these were reachable from the local network (e.g. shared Wi-Fi) with
+    # default credentials.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +22,7 @@ services:
   redis:
     image: redis:alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -58,7 +61,7 @@ services:
       # the host, so the browser origin is localhost, not a service name.
       ALLOWED_ORIGINS: '["http://localhost:5273", "http://127.0.0.1:5273"]'
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
