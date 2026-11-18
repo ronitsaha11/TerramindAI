@@ -31,3 +31,18 @@ async def test_uow_rolls_back_on_exception():
     mock_session.rollback.assert_awaited_once()
     mock_session.close.assert_awaited_once()
     mock_session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_uow_closes_session_even_when_rollback_fails():
+    session_factory = MagicMock()
+    mock_session = AsyncMock()
+    mock_session.rollback.side_effect = ConnectionError("connection lost")
+    session_factory.return_value = mock_session
+
+    with pytest.raises(ConnectionError):
+        async with UnitOfWork(session_factory):
+            raise ValueError("Simulated business logic error")
+
+    mock_session.rollback.assert_awaited_once()
+    mock_session.close.assert_awaited_once()

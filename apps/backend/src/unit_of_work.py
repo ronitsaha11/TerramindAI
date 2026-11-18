@@ -47,9 +47,14 @@ class UnitOfWork:
         exc_tb: TracebackType | None,
     ) -> None:
         if self.session:
-            if exc_type is not None:
-                await self.rollback()
-            await self.session.close()
+            # close() must run even when rollback() itself fails - for example
+            # after the database connection dropped mid-request - or the
+            # session's connection is never returned to the pool cleanly.
+            try:
+                if exc_type is not None:
+                    await self.rollback()
+            finally:
+                await self.session.close()
 
     async def commit(self) -> None:
         if self.session:
