@@ -31,6 +31,4 @@ apps/backend/mypy_out.txt
 docs
 datasets
 scripts
-ruff.zip
-ruff-bin
 walkthrough.md

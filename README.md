@@ -225,6 +225,10 @@ pytest              # deterministic suite; live Gemini tests are deselected
 pytest -m live      # optional: calls the real Gemini API and uses quota
 ```
 
+Ruff is pinned in `requirements-dev.txt`, so local runs and CI use the same
+version. Install tools through the package managers; CI rejects committed
+executables and archives.
+
 Frontend, from `frontend/`:
 
 ```bash
@@ -286,4 +290,3 @@ covered by this statement. They remain under their own terms, listed below.
 | Element 84 Earth Search | STAC endpoint used by the backend scene search (`EARTH_SEARCH_URL`) | Sentinel-2 data it indexes is Copernicus Sentinel data, provided under the Copernicus Sentinel data terms |
 | TiTiler at `titiler.xyz` | Default tile server for scene tiles (`TITILER_URL`) | A publicly hosted third-party instance; no service terms were found. Configure your own instance for production use |
 | MapLibre demo terrain tiles | URL present in `terrain.config.ts`; terrain is disabled, so it is not requested at runtime | A sample service for MapLibre's examples and tests |
-| Ruff (`ruff-bin/ruff.exe`, `ruff.zip`) | Copies of the Ruff linter binary committed to the repository | Ruff is MIT-licensed, which requires its licence notice to accompany copies; these copies are committed without it and are due to be removed |
