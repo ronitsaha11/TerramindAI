@@ -6,7 +6,28 @@ on:
   pull_request:
     branches: ["main"]
 
+# No job writes to the repository. Stating it here keeps the token read-only
+# even if the repository-wide default is ever widened.
+permissions:
+  contents: read
+
 jobs:
+  # Tools come from package managers, never from the repository: a Ruff
+  # executable was once committed here without its licence notice. This also
+  # stops real .env files (only the .env.example templates belong in Git).
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No committed executables, archives or .env files
+        run: |
+          bad=$(git ls-files | grep -i -E '\.(exe|dll|so|dylib|msi|zip|7z|tar|tgz|gz|whl|jar)$|(^|/)\.env$' || true)
+          if [ -n "$bad" ]; then
+            echo "These files must not be committed:"
+            echo "$bad"
+            exit 1
+          fi
+
   # Builds the active frontend at the repository root. `apps/frontend` is a
   # dead Next.js scaffold and is deliberately not built.
   frontend:
